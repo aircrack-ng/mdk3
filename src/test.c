@@ -177,13 +177,28 @@ void test_greylist() {
   }
 }
 
-void test_dump() {
-  unsigned char pkt[36] = "\x08\xff\x10\xaa\xbb\xcc\xdd\xee\xff\x01\x12\x13\x23\x23\x34\x34\x45\x45\x67\x66\x88\x99\x11\x22\x33\x44\x55\x66\x77\x88\x99\xaa\xbb\xcc\xba\xab";
-
-  printf("Opening testdump.cap, writing a packet into.\n");
+void test_packet() {
+  struct packet pkt;
+  int i;
+  struct ether_addr bssid;
+  char *ssid;
+  char enc[4] = {'n', 'w', 't', 'a'};
+  
+  printf("Opening testdump.cap\n");
   
   start_dump("testdump.cap");
-  dump_packet(pkt, 32);
+  
+  printf("Creating random beacons :)");
+  for(i=0; i<50; i++) {
+    bssid = generate_mac(MAC_KIND_AP);
+    ssid = generate_ssid();
+    pkt = create_beacon(bssid, ssid, (uint8_t) (random() % 14), enc[random() % 4], (random() % 2) * 54, random() % 2);
+    dump_packet(&pkt);
+    free(pkt.data);
+    free(ssid);
+  }
+  
+  printf("done!\n");
 }
 
 int main() {
@@ -195,7 +210,7 @@ int main() {
   test_helpers();
   test_linkedlist();
   test_greylist();
-  test_dump();
+  test_packet();
   test_mac_addr();
 
   stop_dump();

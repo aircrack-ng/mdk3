@@ -1,11 +1,12 @@
 #include <sys/time.h>
-
 #include <pcap.h>
+
+#include "dumpfile.h"
 
 pcap_t *dumphandle = NULL;
 pcap_dumper_t *dumper = NULL;
 
-void dump_packet(unsigned char *data, unsigned int len) {
+void dump_packet(struct packet *pkt) {
   struct timeval now;
   struct pcap_pkthdr hdr;
   
@@ -16,10 +17,10 @@ void dump_packet(unsigned char *data, unsigned int len) {
   
   gettimeofday(&now, NULL);
   hdr.ts = now;
-  hdr.caplen = len;
-  hdr.len = len;
+  hdr.caplen = pkt->len;
+  hdr.len = pkt->len;
   
-  pcap_dump((u_char *) dumper, &hdr, data);
+  pcap_dump((u_char *) dumper, &hdr, pkt->data);
   pcap_dump_flush(dumper);
 }
 

@@ -8,7 +8,7 @@ OSD		= osdep
 LIBS		= -L$(OSD) -l$(OSD)
 LIBOSD		= $(OSD)/lib$(OSD).so
 
-OBJS		= debug.o helpers.o mac_addr.o linkedlist.o greylist.o dumpfile.o
+OBJS		= debug.o helpers.o mac_addr.o linkedlist.o greylist.o dumpfile.o packet.o
 OBJS_OSD	= osdep.o channelhopper.o
 
 ATTACKS		= attacks

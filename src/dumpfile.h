@@ -1,7 +1,9 @@
 #ifndef HAVE_DUMPFILE_H
 #define HAVE_DUMPFILE_H
 
-void dump_packet(unsigned char *data, unsigned int len);
+#include "packet.h"
+
+void dump_packet(struct packet *pkt);
 
 void start_dump(char *filename);
 
