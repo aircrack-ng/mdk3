@@ -8,6 +8,7 @@
 #define IEEE80211_TYPE_BEACON	0x80
 #define IEEE80211_TYPE_DATA	0x08
 #define IEEE80211_TYPE_QOSDATA	0x88
+#define IEEE80211_TYPE_AUTH	0xB0
 
 #define DEFAULT_BEACON_INTERVAL	0x64
 #define DEFAULT_11B_RATES	"\x01\x04\x82\x84\x8b\x96"
@@ -15,6 +16,8 @@
 #define DEFAULT_WPA_TKIP_TAG	"\xDD\x18\x00\x50\xF2\x01\x01\x00\x00\x50\xF2\x02\x01\x00\x00\x50\xF2\x02\x01\x00\x00\x50\xF2\x02\x00\x00"
 #define DEFAULT_WPA_AES_TAG	"\xDD\x18\x00\x50\xF2\x01\x01\x00\x00\x50\xF2\x04\x01\x00\x00\x50\xF2\x04\x01\x00\x00\x50\xF2\x02\x00\x00"
 
+#define AUTH_ALGORITHM_OPEN	0x00
+#define AUTH_STATUS_SUCCESS	0x00
 
 struct packet {
   unsigned char *data;
@@ -37,6 +40,12 @@ struct beacon_fixed {
   uint16_t capabilities;
 } __attribute__((packed));
 
+struct auth_fixed {
+  uint16_t algorithm;
+  uint16_t seq;
+  uint16_t status;
+} __attribute__((packed));
+
 //dsflags: 'a' = AdHoc, Beacon   'f' = From DS   't' = To DS   'w' = WDS (intra DS)
 //Set recv to NULLMAC if you don't create WDS packets. (its ignored anyway)
 void create_ieee_hdr(struct packet *pkt, uint8_t type, char dsflags, uint16_t duration, struct ether_addr destination, struct ether_addr source, struct ether_addr bssid_or_transm, struct ether_addr recv, uint8_t fragment);
@@ -54,5 +63,7 @@ struct ether_addr *get_receiver(struct packet *pkt);
 //encryption: 'n' = None   'w' = WEP   't' = TKIP (WPA)   'a' = AES (WPA2)
 //If bitrate is 54, you'll get an bg network, b only otherwise
 struct packet create_beacon(struct ether_addr bssid, char *ssid, uint8_t channel, char encryption, unsigned char bitrate, char adhoc);
+
+struct packet create_auth(struct ether_addr bssid, struct ether_addr client, uint16_t seq);
 
 #endif

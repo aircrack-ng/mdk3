@@ -185,3 +185,21 @@ struct packet create_beacon(struct ether_addr bssid, char *ssid, uint8_t channel
   beacon.data = realloc(beacon.data, beacon.len);
   return beacon;
 }
+
+struct packet create_auth(struct ether_addr bssid, struct ether_addr client, uint16_t seq) {
+  struct packet auth;
+  struct auth_fixed *af;
+  
+  auth.data = malloc(30);
+  
+  create_ieee_hdr(&auth, IEEE80211_TYPE_AUTH, 'a', 314, bssid, client, bssid, bssid, 0);
+  
+  af = (struct auth_fixed *) (auth.data + auth.len);
+  
+  af->algorithm = AUTH_ALGORITHM_OPEN;
+  af->seq = seq;
+  af->status = AUTH_STATUS_SUCCESS;
+  
+  auth.len = 30;
+  return auth;
+}

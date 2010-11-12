@@ -180,7 +180,7 @@ void test_greylist() {
 void test_packet() {
   struct packet pkt;
   int i;
-  struct ether_addr bssid;
+  struct ether_addr bssid, station;
   char *ssid;
   char enc[4] = {'n', 'w', 't', 'a'};
   
@@ -188,7 +188,7 @@ void test_packet() {
   
   start_dump("testdump.cap");
   
-  printf("Creating random beacons :)");
+  printf("Creating random beacons :)\n");
   for(i=0; i<50; i++) {
     bssid = generate_mac(MAC_KIND_AP);
     ssid = generate_ssid();
@@ -197,7 +197,14 @@ void test_packet() {
     free(pkt.data);
     free(ssid);
   }
-  
+  printf("Creating random auths :)\n");
+  for(i=0; i<50; i++) {
+    bssid = generate_mac(MAC_KIND_AP);
+    station = generate_mac(MAC_KIND_CLIENT);
+    pkt = create_auth(bssid, station, (random() % 2) + 1);
+    dump_packet(&pkt);
+    free(pkt.data);
+  }
   printf("done!\n");
 }
 
