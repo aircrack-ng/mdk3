@@ -196,9 +196,9 @@ struct packet create_auth(struct ether_addr bssid, struct ether_addr client, uin
   
   af = (struct auth_fixed *) (auth.data + auth.len);
   
-  af->algorithm = AUTH_ALGORITHM_OPEN;
-  af->seq = seq;
-  af->status = AUTH_STATUS_SUCCESS;
+  af->algorithm = htole16(AUTH_ALGORITHM_OPEN);
+  af->seq = htole16(seq);
+  af->status = htole16(AUTH_STATUS_SUCCESS);
   
   auth.len = 30;
   return auth;
