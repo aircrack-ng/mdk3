@@ -1,0 +1,9 @@
+Written by Pedro Larbig "ASPj" <pedrolarbig@compuserve.de>,
+with code taken from:
+  - 'aircrack' by Christophe Devine,
+  - 'kismet' by Mike Kershaw.
+  - Using 'osdep' Library from www.aircrack-ng.org project for frame injection
+Including several patches and addons from the following contributors:
+ Antragon, moongray, Ace, Zero_Chaos, Hirte, thefkboss, ducttape,               
+ telek0miker, Le_Vert, sorbo, Andy Green, bahathir and Dawid Gajownik           
+THANK YOU!                                                                     
