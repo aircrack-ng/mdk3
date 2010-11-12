@@ -205,7 +205,7 @@ struct packet create_auth(struct ether_addr bssid, struct ether_addr client, uin
   
   auth.data = malloc(30);
   
-  create_ieee_hdr(&auth, IEEE80211_TYPE_AUTH, 'a', 314, bssid, client, bssid, bssid, 0);
+  create_ieee_hdr(&auth, IEEE80211_TYPE_AUTH, 'a', AUTH_DEFAULT_DURATION, bssid, client, bssid, bssid, 0);
   
   af = (struct auth_fixed *) (auth.data + auth.len);
   
@@ -230,4 +230,44 @@ struct packet create_probe(struct ether_addr source, char *ssid, unsigned char b
   add_rate_sets(&probe, 1, (bitrate == 54));
   
   return probe;
+}
+
+struct packet create_deauth(struct ether_addr destination, struct ether_addr source, struct ether_addr bssid) {
+  struct packet deauth;
+  uint16_t *reason;
+  
+  deauth.data = malloc(26);
+  
+  create_ieee_hdr(&deauth, IEEE80211_TYPE_DEAUTH, 'a', AUTH_DEFAULT_DURATION, destination, source, bssid, bssid, 0);
+  
+  reason = (uint16_t *) (deauth.data + deauth.len);
+  
+  if (MAC_MATCHES(source, bssid)) {
+    *reason = htole16(DEAUTH_REASON_UNSPEC);	//AP to Station deauth is with unspecified reason
+  } else {
+    *reason = htole16(DEAUTH_REASON_LEAVING);	//Station to AP deauth is with reason "I am leavin the network"
+  }
+  
+  deauth.len += 2;
+  return deauth;
+}
+
+struct packet create_disassoc(struct ether_addr destination, struct ether_addr source, struct ether_addr bssid) {
+  struct packet disassoc;
+  uint16_t *reason;
+  
+  disassoc.data = malloc(26);
+  
+  create_ieee_hdr(&disassoc, IEEE80211_TYPE_DISASSOC, 'a', AUTH_DEFAULT_DURATION, destination, source, bssid, bssid, 0);
+  
+  reason = (uint16_t *) (disassoc.data + disassoc.len);
+  
+  if (MAC_MATCHES(source, bssid)) {
+    *reason = htole16(DISASSOC_REASON_APFULL);	//AP to Station: I kick you because I am crowded!
+  } else {
+    *reason = htole16(DISASSOC_REASON_LEAVING);	//Station to AP: Bye bye, I am leaving the network!
+  }
+  
+  disassoc.len += 2;
+  return disassoc;
 }

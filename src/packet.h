@@ -10,6 +10,8 @@
 #define IEEE80211_TYPE_QOSDATA	0x88
 #define IEEE80211_TYPE_AUTH	0xB0
 #define IEEE80211_TYPE_PROBEREQ	0x40
+#define IEEE80211_TYPE_DEAUTH	0xC0
+#define IEEE80211_TYPE_DISASSOC	0xA0
 
 #define DEFAULT_BEACON_INTERVAL	0x64
 #define DEFAULT_11B_RATES	"\x01\x04\x82\x84\x8b\x96"
@@ -17,8 +19,14 @@
 #define DEFAULT_WPA_TKIP_TAG	"\xDD\x18\x00\x50\xF2\x01\x01\x00\x00\x50\xF2\x02\x01\x00\x00\x50\xF2\x02\x01\x00\x00\x50\xF2\x02\x00\x00"
 #define DEFAULT_WPA_AES_TAG	"\xDD\x18\x00\x50\xF2\x01\x01\x00\x00\x50\xF2\x04\x01\x00\x00\x50\xF2\x04\x01\x00\x00\x50\xF2\x02\x00\x00"
 
-#define AUTH_ALGORITHM_OPEN	0x00
-#define AUTH_STATUS_SUCCESS	0x00
+#define AUTH_ALGORITHM_OPEN	0x0000
+#define AUTH_STATUS_SUCCESS	0x0000
+#define AUTH_DEFAULT_DURATION	314
+
+#define DEAUTH_REASON_UNSPEC	0x0001
+#define DEAUTH_REASON_LEAVING	0x0003
+#define DISASSOC_REASON_APFULL	0x0005
+#define DISASSOC_REASON_LEAVING	0x0008
 
 struct packet {
   unsigned char *data;
@@ -68,5 +76,9 @@ struct packet create_beacon(struct ether_addr bssid, char *ssid, uint8_t channel
 struct packet create_auth(struct ether_addr bssid, struct ether_addr client, uint16_t seq);
 
 struct packet create_probe(struct ether_addr source, char *ssid, unsigned char bitrate);
+
+struct packet create_deauth(struct ether_addr destination, struct ether_addr source, struct ether_addr bssid);
+
+struct packet create_disassoc(struct ether_addr destination, struct ether_addr source, struct ether_addr bssid);
 
 #endif

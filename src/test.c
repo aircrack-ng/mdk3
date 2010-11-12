@@ -214,6 +214,23 @@ void test_packet() {
     free(pkt.data);
     free(ssid);
   }
+  printf("Creating random kicks :)\n");
+  for(i=0; i<20; i++) {
+    station = generate_mac(MAC_KIND_CLIENT);
+    bssid = generate_mac(MAC_KIND_AP);    
+    pkt = create_deauth(bssid, station, bssid);
+    dump_packet(&pkt);
+    free(pkt.data);
+    pkt = create_deauth(station, bssid, bssid);
+    dump_packet(&pkt);
+    free(pkt.data);
+    pkt = create_disassoc(bssid, station, bssid);
+    dump_packet(&pkt);
+    free(pkt.data);
+    pkt = create_disassoc(station, bssid, bssid);
+    dump_packet(&pkt);
+    free(pkt.data);
+  }
   
   printf("done!\n");
 }

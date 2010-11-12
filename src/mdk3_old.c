@@ -1205,48 +1205,6 @@ void mac_bruteforce_sniffer()
 }
 
 
-struct pckt create_probe_frame(char *ssid, struct pckt mac, unsigned char *dest)
-{
-// Generating Probe Frame
-
-    struct pckt retn;
-    char *hdr = "\x40\x00\x00\x00";
-    char *bcast = "\xff\xff\xff\xff\xff\xff";
-    char *seq = "\x00\x00\x00";
-    char *rates = "\x01\x04\x82\x84\x8b\x96";
-    int slen;
-
-    slen = strlen(ssid);
-
-    memcpy(pkt, hdr, 4);
-    if (dest == NULL) {
-	// Destination: Broadcast
-	memcpy(pkt+4, bcast, ETHER_ADDR_LEN);
-    } else {
-	memcpy(pkt+4, dest, ETHER_ADDR_LEN);
-    }
-    // MAC which is probing
-    memcpy(pkt+10, mac.data, ETHER_ADDR_LEN);
-    if (dest == NULL) {
-	// BSSID: Broadcast
-	memcpy(pkt+16, bcast, ETHER_ADDR_LEN);
-    } else {
-	memcpy(pkt+16, dest, ETHER_ADDR_LEN);
-    }
-    // Sequence
-    memcpy(pkt+22, seq, 3);
-    // SSID
-    pkt[25] = slen;
-    memcpy(pkt+26, ssid, slen);
-    // Supported Bitrates (1, 2, 5.5, 11 MBit)
-    memcpy(pkt+26+slen, rates, ETHER_ADDR_LEN);
-
-    retn.data = pkt;
-    retn.len = 26 + slen + ETHER_ADDR_LEN;
-
-    return retn;
-}
-
 struct pckt create_deauth_frame(unsigned char *mac_sa, unsigned char *mac_da, unsigned char *mac_bssid, int disassoc)
 {
 // Generating deauthentication or disassociation frame
