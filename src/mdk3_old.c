@@ -1874,6 +1874,23 @@ struct pckt wids_machine()
     int t;
     struct clistwidsclient *search;
 
+/*  ZERO_CHAOS says: if you want to make the WIDS vendors hate you
+    also match the sequence numbers of the victims
+    also match the sequence numbers of the victims
+    also match the sequence numbers of the victims
+    also match the sequence numbers of the victims
+    also match the sequence numbers of the victims
+    also match the sequence numbers of the victims
+    also match the sequence numbers of the victims
+    also match the sequence numbers of the victims
+    also match the sequence numbers of the victims
+
+Aireplay should be able to choose IV from a pool (when ringbuffer is big enough or unlimited) that hasn't been used in last X packets 
+Ghosting (tx power): by changing tx power of the card while injecting, we can evade location tracking. If you turn the radio's power up and down every few ms, the trackers will have a much harder time finding you (basicly you will hop all over the place depending on sensor position). At least madwifi can do it. 
+Ghosting (speed/modulation): change speed every few ms, not a fantastic evasion technique but it may cause more location tracking oddity. Note that tx power levels can only be set at certain speeds (lower speed means higher tx power allowed). 
+802.11 allows you to fragment each packet into as many as 16 pieces. It would be nice if we could use fragmentated packets in every aireplay-ng attack.
+*/
+
     if (! init_wids) {
 	// WIDS confusion initialisation
 

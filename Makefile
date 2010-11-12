@@ -18,4 +18,7 @@ install: $(MDK3_SRC)
 clean:
 	$(MAKE) -C $(SRC) clean
 
+test:
+	$(MAKE) -C $(SRC) test
+
 distclean: clean

@@ -56,12 +56,12 @@ void test_helpers() {
     free(ssid[i]);
   }
   
-  printf("\nReading my own code line by line:\n");
-  line = read_next_line("./test.c", 1);
+  printf("\nWho are my authors?:\n");
+  line = read_next_line("./AUTHORS", 1);
   while (line) {
     printf("  READING: %s\n", line);
     free(line);
-    line = read_next_line("./test.c", 0);
+    line = read_next_line("./AUTHORS", 0);
   }
   
   printf("\n\n");
@@ -159,7 +159,7 @@ void test_greylist() {
   printf("Testing Greylist\n");
   
   //Using an example file that is not well formed ;)
-  load_greylist(1, "../useful_files/fakeap-example.txt");
+  load_greylist(1, "./useful_files/fakeap-example.txt");
   
   if (is_blacklisted(target)) {
     printf(" Target MAC has been found blacklisted\n");

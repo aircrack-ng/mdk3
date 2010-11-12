@@ -30,6 +30,7 @@ mdk3: mdk3.c $(OSD)/libosdep.a $(OBJS) $(OBJS_OSD) $(OBJ_ATT)
 
 test: test.c $(OBJS)
 	$(CC) $(CFLAGS) $(^) -o $(@) $(LINKFLAGS)
+	mv $(@) ..
 
 install: mdk3
 	install -D -m 0755 $^ $(SBINDIR)/$^
@@ -39,6 +40,7 @@ install: mdk3
 clean:
 	rm -f mdk3
 	rm -f $(OBJS) $(OBJS_OSD)
+	rm -f ../test
 	$(MAKE) -C $(OSD) clean
 	$(MAKE) -C $(ATTACKS) clean
 
