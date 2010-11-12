@@ -555,80 +555,7 @@ skipl:
     return fakeap;
 }
 
-//packet.h
-int is_from_target_ap(unsigned char *targetap, unsigned char *packet)
-{
 
-	unsigned char *bss = NULL;
-	unsigned char ds = packet[1] & 3;	//Set first 6 bits to 0
-
-	switch (ds) {
-	// p[1] - xxxx xx00 => NoDS   p[4]-DST p[10]-SRC p[16]-BSS
-	case 0:
-		bss = packet + 16;
-		break;
-	// p[1] - xxxx xx01 => ToDS   p[4]-BSS p[10]-SRC p[16]-DST
-	case 1:
-		bss = packet + 4;
-		break;
-	// p[1] - xxxx xx10 => FromDS p[4]-DST p[10]-BSS p[16]-SRC
-	case 2:
-		bss = packet + 10;
-		break;
-	// p[1] - xxxx xx11 => WDS    p[4]-RCV p[10]-TRM p[16]-DST p[26]-SRC
-	case 3:
-		bss = packet + 10;
-		break;
-	}
-
-    if (!memcmp(targetap, bss, 6)) return 1;
-    return 0;
-}
-
-//Returns pointer to the desired MAC Adresses inside a packet
-//Type: s => Station
-//      a => AP
-//      b => BSSID
-//packet.h
-unsigned char *get_macs_from_packet(char type, unsigned char *packet)
-{
-    unsigned char *bssid, *station, *ap;
-
-    //Ad-Hoc Case!
-    bssid = packet + 16;
-    station = packet + 10;
-    ap = packet + 4;
-
-    if ((packet[1] & '\x01') && (!(packet[1] & '\x02'))) {	// ToDS packet
-	bssid = packet + 4;
-	station = packet + 10;
-	ap = packet + 16;
-    }
-    if ((!(packet[1] & '\x01')) && (packet[1] & '\x02')) {	// FromDS packet
-	station = packet + 4;
-	bssid = packet + 10;
-	ap = packet + 16;
-    }
-    if ((packet[1] & '\x01') && (packet[1] & '\x02')) {		// WDS packet
-	station = packet + 4;
-	bssid = packet + 10;
-	ap = packet + 4;
-    }
-
-    switch(type) {
-
-    case 's':
-	return station;
-
-    case 'a':
-	return ap;
-
-    case 'b':
-	return bssid;
-    }
-
-    return NULL;
-}
 
 //packet.h
 struct beaconinfo parse_beacon(unsigned char *frame, int framelen)
@@ -1277,33 +1204,6 @@ void mac_bruteforce_sniffer()
 
 }
 
-
-struct pckt create_auth_frame(unsigned char *ap, int random_mac, unsigned char *client_mac)
-{
-// Generating an authentication frame
-
-    struct pckt retn;
-    char *hdr = "\xb0\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
-		"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00";
-    unsigned char *mac;
-
-    memcpy(pkt, hdr, 31);
-    // Set target AP
-    memcpy(pkt+4, ap, ETHER_ADDR_LEN);
-    memcpy(pkt+16,ap, ETHER_ADDR_LEN);
-    // Set client MAC
-    if (client_mac == NULL) {
-	if (random_mac) mac = generate_mac(0);
-	    else mac = generate_mac(1);
-	memcpy(pkt+10,mac.ether_addr_octet,ETHER_ADDR_LEN);
-    } else {
-	memcpy(pkt+10,client_mac,ETHER_ADDR_LEN);
-    }
-    retn.len = 30;
-    retn.data = pkt;
-
-    return retn;
-}
 
 struct pckt create_probe_frame(char *ssid, struct pckt mac, unsigned char *dest)
 {

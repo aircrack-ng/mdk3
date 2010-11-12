@@ -9,6 +9,7 @@
 #define IEEE80211_TYPE_DATA	0x08
 #define IEEE80211_TYPE_QOSDATA	0x88
 #define IEEE80211_TYPE_AUTH	0xB0
+#define IEEE80211_TYPE_PROBEREQ	0x40
 
 #define DEFAULT_BEACON_INTERVAL	0x64
 #define DEFAULT_11B_RATES	"\x01\x04\x82\x84\x8b\x96"
@@ -65,5 +66,7 @@ struct ether_addr *get_receiver(struct packet *pkt);
 struct packet create_beacon(struct ether_addr bssid, char *ssid, uint8_t channel, char encryption, unsigned char bitrate, char adhoc);
 
 struct packet create_auth(struct ether_addr bssid, struct ether_addr client, uint16_t seq);
+
+struct packet create_probe(struct ether_addr source, char *ssid, unsigned char bitrate);
 
 #endif

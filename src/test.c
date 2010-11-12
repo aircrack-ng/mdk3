@@ -189,7 +189,7 @@ void test_packet() {
   start_dump("testdump.cap");
   
   printf("Creating random beacons :)\n");
-  for(i=0; i<50; i++) {
+  for(i=0; i<20; i++) {
     bssid = generate_mac(MAC_KIND_AP);
     ssid = generate_ssid();
     pkt = create_beacon(bssid, ssid, (uint8_t) (random() % 14), enc[random() % 4], (random() % 2) * 54, random() % 2);
@@ -198,13 +198,23 @@ void test_packet() {
     free(ssid);
   }
   printf("Creating random auths :)\n");
-  for(i=0; i<50; i++) {
+  for(i=0; i<20; i++) {
     bssid = generate_mac(MAC_KIND_AP);
     station = generate_mac(MAC_KIND_CLIENT);
     pkt = create_auth(bssid, station, (random() % 2) + 1);
     dump_packet(&pkt);
     free(pkt.data);
   }
+  printf("Creating random probes :)\n");
+  for(i=0; i<20; i++) {
+    station = generate_mac(MAC_KIND_CLIENT);
+    ssid = generate_ssid();
+    pkt = create_probe(station, ssid, (random() % 2) * 54);
+    dump_packet(&pkt);
+    free(pkt.data);
+    free(ssid);
+  }
+  
   printf("done!\n");
 }
 

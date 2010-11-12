@@ -134,6 +134,32 @@ struct ether_addr *get_receiver(struct packet *pkt) {
   return get_addr(pkt, 'b');
 }
 
+void add_ssid_set(struct packet *pkt, char *ssid) {
+  pkt->data[pkt->len] = 0x00;	//SSID parameter set
+  pkt->data[pkt->len+1] = (uint8_t) strlen(ssid);	//SSID len
+  memcpy(pkt->data + pkt->len + 2, ssid, strlen(ssid));	//Copy the SSID
+  
+  pkt->len += strlen(ssid) + 2;
+}
+
+void add_rate_sets(struct packet *pkt, char b_rates, char g_rates) {
+  if (b_rates) {
+    memcpy(pkt->data + pkt->len, DEFAULT_11B_RATES, 6);	//11 MBit
+    pkt->len += 6;
+  }
+  if (g_rates) {
+    memcpy(pkt->data + pkt->len, DEFAULT_11G_RATES, 10);	//54 MBit
+    pkt->len += 10;
+  }
+}
+
+void add_channel_set(struct packet *pkt, uint8_t channel) {
+  pkt->data[pkt->len] = 0x03;	//Channel set
+  pkt->data[pkt->len+1] = 0x01;	//One channel
+  pkt->data[pkt->len+2] = channel;
+  pkt->len += 3;
+}
+
 struct packet create_beacon(struct ether_addr bssid, char *ssid, uint8_t channel, char encryption, unsigned char bitrate, char adhoc) {
   struct packet beacon;
   struct beacon_fixed *bf;
@@ -155,24 +181,11 @@ struct packet create_beacon(struct ether_addr bssid, char *ssid, uint8_t channel
   if (encryption != 'n') bf->capabilities |= 0x0010;
 
   beacon.len += sizeof(struct beacon_fixed);
-  beacon.data[beacon.len] = 0x00;	//SSID parameter set
-  beacon.data[beacon.len+1] = (uint8_t) strlen(ssid);	//SSID len
-  memcpy(beacon.data + beacon.len + 2, ssid, strlen(ssid));	//Copy the SSID
-  
-  beacon.len += strlen(ssid) + 2;
-  memcpy(beacon.data + beacon.len, DEFAULT_11B_RATES, 6);	//11 MBit
-  
-  beacon.len += 6;
-  beacon.data[beacon.len] = 0x03;	//Channel set
-  beacon.data[beacon.len+1] = 0x01;	//One channel
-  beacon.data[beacon.len+2] = channel;
-  
-  beacon.len += 3;
-  if (bitrate == 54) {
-    memcpy(beacon.data + beacon.len, DEFAULT_11G_RATES, 10);	//54 MBit
-    beacon.len += 10;
-  }
-  
+
+  add_ssid_set(&beacon, ssid);
+  add_rate_sets(&beacon, 1, (bitrate == 54));
+  add_channel_set(&beacon, channel);
+
   if (encryption == 't') {
     memcpy(beacon.data + beacon.len, DEFAULT_WPA_TKIP_TAG, 26);
     beacon.len += 26;
@@ -202,4 +215,19 @@ struct packet create_auth(struct ether_addr bssid, struct ether_addr client, uin
   
   auth.len = 30;
   return auth;
+}
+
+struct packet create_probe(struct ether_addr source, char *ssid, unsigned char bitrate) {
+  struct packet probe;
+  struct ether_addr bc;
+
+  probe.data = malloc(2048);
+  
+  MAC_SET_BCAST(bc);
+  create_ieee_hdr(&probe, IEEE80211_TYPE_PROBEREQ, 'a', 0, bc, source, bc, bc, 0);
+
+  add_ssid_set(&probe, ssid);
+  add_rate_sets(&probe, 1, (bitrate == 54));
+  
+  return probe;
 }
