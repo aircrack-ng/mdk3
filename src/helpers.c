@@ -94,7 +94,7 @@ char *read_next_line(char *filename, char reset)
 {
     static int last_pos = 0;
     int bytesread;
-    char *line = malloc(1);
+    char *line = NULL;
     char **pline = &line;
     FILE *file_fp;
     size_t initsize = 1;
@@ -112,6 +112,7 @@ char *read_next_line(char *filename, char reset)
     
     if (bytesread == -1) {
       last_pos = 0;
+      free(line);	//Thanks valgrind for getting this BITCH. even if nothing is read from file, memory is still allocated by getline!
       fclose(file_fp);
       return NULL;
     }

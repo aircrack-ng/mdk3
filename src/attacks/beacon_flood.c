@@ -161,7 +161,7 @@ struct packet beacon_flood_getpacket(void *options) {
   static time_t t_prev = 0;
   static int freessid = 0, freeline = 0;
   unsigned char bitrate, adhoc;
-  char *line = NULL;
+  static char *line = NULL;
   
   if (bopt->hopto) {
     packsent++;
@@ -191,7 +191,7 @@ struct packet beacon_flood_getpacket(void *options) {
       do { line = read_next_line(bopt->mac_ssid_filename, 0); } while (line == NULL);
       ssid = strchr(line, ' ');
       bssid = parse_mac(line);
-      if (! ssid) printf("Skipping malformed line: %s\n", line);
+      if (! ssid) { printf("Skipping malformed line: %s\n", line); free(line); }
       else ssid++; //Skip the whitespace
       freeline = 1;
     } while (ssid == NULL);
