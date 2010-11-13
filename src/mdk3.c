@@ -72,7 +72,7 @@ int main(int argc, char *argv[]) {
   
   if (cur_attack == NULL) print_help_and_die(a, att_cnt, 0, "Invalid Attack Mode\n");
   
-  if (! strcmp(argv[1], "--help")) cur_attack->print_longhelp();
+  if (! strcmp(argv[1], "--help")) { cur_attack->print_longhelp(); return 0; }
   
   if (osdep_start(argv[1])) {
     printf("Starting OSDEP on %s failed\n", argv[1]);

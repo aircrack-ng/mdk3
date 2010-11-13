@@ -204,9 +204,6 @@ int eapol_mcast = FLAG_TKIP;                 // default multicast cipher: TKIP
 
 
 		"TEST MODES:\n"
-		"b   - Beacon Flood Mode\n"
-		"      Sends beacon frames to show fake APs at clients.\n"
-		"      This can sometimes crash network scanners and even drivers!\n"
 		"a   - Authentication DoS mode\n"
 		"      Sends authentication frames to all APs found in range.\n"
 		"      Too many clients freeze or reset some APs.\n"
@@ -236,38 +233,6 @@ int eapol_mcast = FLAG_TKIP;                 // default multicast cipher: TKIP
 		"      network to WEP or disable encryption. More effective in\n"
 		"      combination with social engineering.\n";
 
-
-char use_beac[]="b   - Beacon Flood Mode\n"
-		"      Sends beacon frames to generate fake APs at clients.\n"
-		"      This can sometimes crash network scanners and drivers!\n"
-		"      OPTIONS:\n"
-		"      -n <ssid>\n"
-		"         Use SSID <ssid> instead of randomly generated ones\n"
-		"      -f <filename>\n"
-		"         Read SSIDs from file\n"
-		"      -v <filename>\n"
-		"         Read MACs and SSIDs from file. See example file!\n"
-		"      -d\n"
-		"         Show network as Ad-Hoc node\n"
-		"      -w\n"
-		"         Set WEP bit (Generates encrypted networks)\n"
-		"      -g\n"
-		"         Create networks with 54 Mbit instead of 11 Mbit\n"
-		"      -t\n"
-		"         Create networks using WPA TKIP encryption\n"
-		"      -a\n"
-		"         Create networks using WPA AES encryption\n"
-		"      -m\n"
-		"         Use valid accesspoint MAC from built-in OUI database\n"
-		"      -h\n"
-		"         Hop to channel where network is spoofed\n"
-		"         This makes the test more effective against some devices/drivers\n"
-		"         But it reduces packet rate due to channel hopping.\n"
-		"      -c <chan>\n"
-		"         Create fake networks on channel <chan>. If you want your card to\n"
-		"         hop on this channel, you have to set -h option, too.\n"
-		"      -s <pps>\n"
-		"         Set speed in packets per second (Default: 50)\n";
 
 char use_auth[]="a   - Authentication DoS mode\n"
 		"      Sends authentication packets to all APs found in range.\n"

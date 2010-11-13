@@ -2,6 +2,7 @@
 #define HAVE_ATTACKS_H
 
 #include "dummy.h"
+#include "beacon_flood.h"
 
 typedef void  (*fp) (void);
 typedef char  (*fpc)(void);
