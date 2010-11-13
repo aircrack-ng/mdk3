@@ -159,8 +159,9 @@ struct packet beacon_flood_getpacket(void *options) {
   struct packet pkt;
   static unsigned int packsent = 0, encindex;
   static time_t t_prev = 0;
-  static int freessid = 0;
+  static int freessid = 0, freeline = 0;
   unsigned char bitrate, adhoc;
+  char *line = NULL;
   
   if (bopt->hopto) {
     packsent++;
@@ -174,31 +175,26 @@ struct packet beacon_flood_getpacket(void *options) {
   } else {
     curchan = (int) generate_channel();
   }
-  
-/*  
-  bopt->ssid = NULL;
-  bopt->ssid_filename = NULL;
-  bopt->mac_ssid_filename = NULL;
-  bopt->type = 2;
-  strcpy(bopt->encryptions, "nwta");
-  bopt->bitrates = 'a';
-  bopt->validapmac = 0;
-  bopt->hopto = 0;
-  bopt->channel = 0;
-  bopt->speed = 50;*/
 
   if (bopt->validapmac) bssid = generate_mac(MAC_KIND_AP);
   else bssid = generate_mac(MAC_KIND_RANDOM);
 
-  if (freessid && ssid) free(ssid);
+  if (freessid && ssid) free(ssid);	//We need to keep those just before we change them
+  if (freeline && line) free(line);	//To print SSID in print_stats!
   if (bopt->ssid) {
     ssid = bopt->ssid;
   } else if (bopt->ssid_filename) {
     do { ssid = read_next_line(bopt->ssid_filename, 0); } while (ssid == NULL);
     freessid = 1;
   } else if (bopt->mac_ssid_filename) {
-    printf("Not implemented: mac + ssid files\n");
-    exit(-1);
+    do {
+      do { line = read_next_line(bopt->mac_ssid_filename, 0); } while (line == NULL);
+      ssid = strchr(line, ' ');
+      bssid = parse_mac(line);
+      if (! ssid) printf("Skipping malformed line: %s\n", line);
+      else ssid++; //Skip the whitespace
+      freeline = 1;
+    } while (ssid == NULL);
   } else {
     ssid = generate_ssid();
     freessid = 1;
