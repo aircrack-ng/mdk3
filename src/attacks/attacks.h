@@ -1,7 +1,6 @@
 #ifndef HAVE_ATTACKS_H
 #define HAVE_ATTACKS_H
 
-#include "dummy.h"
 #include "beacon_flood.h"
 #include "../packet.h"
 
