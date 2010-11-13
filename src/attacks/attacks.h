@@ -19,7 +19,8 @@ struct attacks {
 				 //            Should return the packet mdk3 should send. Use usleep in this call to adjust injection speed
 				 //            If the packet.data is NULL, and/or packet.len is 0, mdk3 will exit the sending loop
   /* void  */ fps print_stats;	 /* (void *) - This is called each second to enable attack to print its stats; void * to options supplied */
-  
+  /* void  */ fps perform_check; /* (void *) - Called after each injected packet, implement logic to check for success here */
+
   char mode_identifier; /* A character to identify the mode: mdk3 <interface> MODE */
   char *attack_name; /* The name of this attack */
 };

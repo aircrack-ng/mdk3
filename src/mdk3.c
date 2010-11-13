@@ -76,7 +76,7 @@ void main_loop(struct attacks *att, void *options) {
     }
     
     //Perform checks
-    //att->perform_check(options);
+    att->perform_check(options);
   }
 }
 

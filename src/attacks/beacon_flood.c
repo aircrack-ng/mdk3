@@ -226,7 +226,7 @@ struct packet beacon_flood_getpacket(void *options) {
   
   pkt = create_beacon(bssid, ssid, (uint8_t) curchan, bopt->encryptions[encindex], bitrate, adhoc);
   
-  usleep(pps2usec(bopt->speed));
+  sleep_till_next_packet(bopt->speed);
   return pkt;
 }
 
@@ -234,6 +234,11 @@ void beacon_flood_print_stats(void *options) {
   options = options; //Avoid unused warning
   printf("\rCurrent MAC: "); print_mac(bssid);
   printf(" on Channel %2d with SSID: %s\n", curchan, ssid);
+}
+
+void beacon_flood_perform_check(void *options) {
+  //Nothing to check for beacon flooding attacks
+  options = options; //Avoid unused warning
 }
 
 struct attacks load_beacon_flood() {
@@ -246,6 +251,7 @@ struct attacks load_beacon_flood() {
   this_attack.parse_options = (fpo) beacon_flood_parse;
   this_attack.get_packet = (fpp) beacon_flood_getpacket;
   this_attack.print_stats = (fps) beacon_flood_print_stats;
+  this_attack.perform_check = (fps) beacon_flood_perform_check;
   this_attack.mode_identifier = BEACON_FLOOD_MODE;
   this_attack.attack_name = beacon_flood_name;
 

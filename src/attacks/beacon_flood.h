@@ -15,4 +15,6 @@ struct packet beacon_flood_getpacket(void *options);
 
 void beacon_flood_print_stats(void *options);
 
+void beacon_flood_perform_check(void *options);
+
 #endif

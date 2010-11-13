@@ -1,6 +1,8 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <unistd.h>
+#include <sys/time.h>
 
 #include "helpers.h"
 
@@ -43,23 +45,49 @@ char *generate_ssid()
 }
 
 
-int pps2usec(int pps)
-{
-// Very basic routine to convert desired packet rate to µs
-// µs values were measured with rt2570 device
-// Should use /dev/rtc like in aireplay
+int timeval_subtract(struct timeval *result, struct timeval *x, struct timeval *y) {
+  /* Perform the carry for the later subtraction by updating y. */
+  if (x->tv_usec < y->tv_usec) {
+    int nsec = (y->tv_usec - x->tv_usec) / 1000000 + 1;
+    y->tv_usec -= 1000000 * nsec;
+    y->tv_sec += nsec;
+  }
+  if (x->tv_usec - y->tv_usec > 1000000) {
+    int nsec = (x->tv_usec - y->tv_usec) / 1000000;
+    y->tv_usec += 1000000 * nsec;
+    y->tv_sec -= nsec;
+  }
 
-    int usec;
-    int ppc = 1000000;
+  /* Compute the time remaining to wait.
+     tv_usec is certainly positive. */
+  result->tv_sec = x->tv_sec - y->tv_sec;
+  result->tv_usec = x->tv_usec - y->tv_usec;
 
-    if (pps>15) ppc=950000;
-    if (pps>35) ppc=800000;
-    if (pps>75) ppc=730000;
-    if (pps>125)ppc=714000;
+  /* Return 1 if result is negative. */
+  return x->tv_sec < y->tv_sec;
+}
 
-    usec = ppc / pps;
-
-    return usec;
+void sleep_till_next_packet(unsigned int pps) {
+  static struct timeval *lastvisit = NULL;
+  struct timeval now, next, wait;
+  unsigned int tbp;
+  
+  if (! lastvisit) {
+    lastvisit = malloc(sizeof(struct timeval));
+    gettimeofday(lastvisit, NULL);
+    return;
+  }
+  
+  next.tv_sec = lastvisit->tv_sec; next.tv_usec = lastvisit->tv_usec;
+  tbp = 1000000 / pps;
+  next.tv_usec += tbp;
+  if (next.tv_usec > 999999) { next.tv_usec -= 1000000; next.tv_sec++; }
+  
+  gettimeofday(&now, NULL);
+  if (! timeval_subtract(&wait, &next, &now))
+    usleep(wait.tv_usec);
+  
+  gettimeofday(lastvisit, NULL);
 }
 
 char *read_next_line(char *filename, char reset)
