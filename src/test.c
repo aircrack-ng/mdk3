@@ -231,7 +231,16 @@ void test_packet() {
     dump_packet(&pkt);
     free(pkt.data);
   }
-  
+  printf("Creating random associations :)\n");
+  for(i=0; i<20; i++) {
+    bssid = generate_mac(MAC_KIND_AP);
+    ssid = generate_ssid();
+    station = generate_mac(MAC_KIND_CLIENT);
+    pkt = create_assoc_req(station, bssid, 0x0431, ssid, 54);
+    dump_packet(&pkt);
+    free(pkt.data);
+    free(ssid);
+  }
   printf("done!\n");
 }
 

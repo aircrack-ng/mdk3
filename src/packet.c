@@ -232,6 +232,7 @@ struct packet create_probe(struct ether_addr source, char *ssid, unsigned char b
   add_ssid_set(&probe, ssid);
   add_rate_sets(&probe, 1, (bitrate == 54));
   
+  probe.data = realloc(probe.data, probe.len);
   return probe;
 }
 
@@ -273,4 +274,24 @@ struct packet create_disassoc(struct ether_addr destination, struct ether_addr s
   
   disassoc.len += 2;
   return disassoc;
+}
+
+struct packet create_assoc_req(struct ether_addr client, struct ether_addr bssid, uint16_t capabilities, char *ssid, unsigned char bitrate) {
+  struct packet assoc;
+  struct assoc_fixed *af;
+  
+  assoc.data = malloc(2048);
+  
+  create_ieee_hdr(&assoc, IEEE80211_TYPE_ASSOCREQ, 'a', AUTH_DEFAULT_DURATION, bssid, client, bssid, bssid, 0);
+  af = (struct assoc_fixed *) (assoc.data + assoc.len);
+
+  af->capabilities = htole16(capabilities);
+  af->interval = htole16(DEFAULT_LISTEN_INTERVAL);
+  assoc.len += sizeof(struct assoc_fixed);
+  
+  add_ssid_set(&assoc, ssid);
+  add_rate_sets(&assoc, 1, (bitrate == 54));
+  
+  assoc.data = realloc(assoc.data, assoc.len);
+  return assoc;
 }
