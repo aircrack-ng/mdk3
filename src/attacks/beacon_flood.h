@@ -9,4 +9,10 @@ void beacon_flood_longhelp();
 
 struct attacks load_beacon_flood();
 
+void *beacon_flood_parse(int argc, char *argv[]);
+
+struct packet beacon_flood_getpacket(void *options);
+
+void beacon_flood_print_stats(void *options);
+
 #endif

@@ -204,6 +204,9 @@ int eapol_mcast = FLAG_TKIP;                 // default multicast cipher: TKIP
 
 
 		"TEST MODES:\n"
+		"b   - Beacon Flood Mode\n"
+		"      Sends beacon frames to show fake APs at clients.\n"
+		"      This can sometimes crash network scanners and even drivers!\n"
 		"a   - Authentication DoS mode\n"
 		"      Sends authentication frames to all APs found in range.\n"
 		"      Too many clients freeze or reset some APs.\n"
@@ -233,6 +236,38 @@ int eapol_mcast = FLAG_TKIP;                 // default multicast cipher: TKIP
 		"      network to WEP or disable encryption. More effective in\n"
 		"      combination with social engineering.\n";
 
+
+char use_beac[]="b   - Beacon Flood Mode\n"
+		"      Sends beacon frames to generate fake APs at clients.\n"
+		"      This can sometimes crash network scanners and drivers!\n"
+		"      OPTIONS:\n"
+		"      -n <ssid>\n"
+		"         Use SSID <ssid> instead of randomly generated ones\n"
+		"      -f <filename>\n"
+		"         Read SSIDs from file\n"
+		"      -v <filename>\n"
+		"         Read MACs and SSIDs from file. See example file!\n"
+		"      -d\n"
+		"         Show network as Ad-Hoc node\n"
+		"      -w\n"
+		"         Set WEP bit (Generates encrypted networks)\n"
+		"      -g\n"
+		"         Create networks with 54 Mbit instead of 11 Mbit\n"
+		"      -t\n"
+		"         Create networks using WPA TKIP encryption\n"
+		"      -a\n"
+		"         Create networks using WPA AES encryption\n"
+		"      -m\n"
+		"         Use valid accesspoint MAC from built-in OUI database\n"
+		"      -h\n"
+		"         Hop to channel where network is spoofed\n"
+		"         This makes the test more effective against some devices/drivers\n"
+		"         But it reduces packet rate due to channel hopping.\n"
+		"      -c <chan>\n"
+		"         Create fake networks on channel <chan>. If you want your card to\n"
+		"         hop on this channel, you have to set -h option, too.\n"
+		"      -s <pps>\n"
+		"         Set speed in packets per second (Default: 50)\n";
 
 char use_auth[]="a   - Authentication DoS mode\n"
 		"      Sends authentication packets to all APs found in range.\n"
@@ -2491,29 +2526,8 @@ int mdk_parser(int argc, char *argv[])
     {
     case 'b':
 	mode = 'b';
-	usespeed = 1;
-	for (t=3; t<argc; t++)
-	{
-	    if (! strcmp(argv[t], "-n")) if (argc > t+1) ssid = argv[t+1];
-	    if (! strcmp(argv[t], "-f")) if (argc > t+1) {
-		if (ssid_file_name == NULL) ssid_file_name = argv[t+1];
-		else { printf(use_beac); return -1; }
-	    }
-	    if (! strcmp(argv[t], "-v")) if (argc > t+1) {
-		if (ssid_file_name == NULL) { ssid_file_name = argv[t+1]; adv=1; }
-		else { printf(use_beac); return -1; }
-	    }
-	    if (! strcmp(argv[t], "-s")) if (argc > t+1) pps = strtol(argv[t+1], (char **) NULL, 10);
-	    if (! strcmp(argv[t], "-c")) if (argc > t+1) fchan = strtol(argv[t+1], (char **) NULL, 10);
 	    if (! strcmp(argv[t], "-h")) mode = 'B';
-	    if (! strcmp(argv[t], "-m")) random_mac = 0;
-	    if (! strcmp(argv[t], "-w")) wep = 1;
-	    if (! strcmp(argv[t], "-g")) gmode = 1;
-	    if (! strcmp(argv[t], "-t")) wep = 2;
-	    if (! strcmp(argv[t], "-a")) wep = 3;
-	    if (! strcmp(argv[t], "-d")) adhoc = 1;
-	}
-	break;
+
     case 'a':
 	mode = 'a';
 	for (t=3; t<argc; t++)
@@ -2826,24 +2840,7 @@ int mdk_parser(int argc, char *argv[])
 
 	switch (mode)
 	{
-	case 'B':
-	    if ((nb_sent % 30 == 0) || (total_time % 3 == 0))  // Switch Channel every 30 frames or 3 seconds
-	    {
-		if (fchan) {
-		    osdep_set_channel(fchan);
-		    chan = fchan;
-		} else {
-		    chan = generate_channel();
-		    osdep_set_channel(chan);
-		}
-	    }
-	    frm = create_beacon_frame(ssid, chan, wep, random_mac, gmode, adhoc, adv);
-	    break;
-	case 'b':
-	    if (fchan) chan = fchan;
-		else chan = generate_channel();
-	    frm = create_beacon_frame(ssid, chan, wep, random_mac, gmode, adhoc, adv);
-	    break;
+
 	case 'a':  // Automated Auth DoS mode
 	    if ((nb_sent % 512 == 0) || (total_time % 30 == 0))  // After 512 packets or 30 seconds, search for new target
 	    {

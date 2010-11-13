@@ -2,6 +2,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <time.h>
 
 #include "attacks/attacks.h"
 #include "osdep.h"
@@ -49,6 +50,36 @@ void print_help_and_die(struct attacks *att, int att_cnt, char full, char *add_m
   exit(1);
 }
 
+void main_loop(struct attacks *att, void *options) {
+  struct packet inject;
+  unsigned int p_sent = 0, p_sent_ps = 0;
+  time_t t_prev = 0;
+  
+  while (1) {
+    //Get packet
+    inject = att->get_packet(options);
+    if ((inject.data == NULL) || (inject.len == 0)) break;
+    
+    //Send packet
+    osdep_send_packet(inject.data, inject.len);
+    free(inject.data);
+    p_sent_ps++;
+    p_sent++;
+    
+    //Show speed and stats
+    if((time(NULL) - t_prev) >= 1) {
+      t_prev = time(NULL);
+      att->print_stats(options);
+      printf("\rPackets sent: %6d - Speed: %4d packets/sec", p_sent, p_sent_ps);
+      fflush(stdout);
+      p_sent_ps=0;
+    }
+    
+    //Perform checks
+    //att->perform_check(options);
+  }
+}
+
 int main(int argc, char *argv[]) {
   struct attacks *a, *cur_attack = NULL;
   void *cur_options;
@@ -82,10 +113,11 @@ int main(int argc, char *argv[]) {
   /* drop privileges */
   setuid(getuid());
 
-  cur_options = cur_attack->parse_options(argc - 3, argv + 3);
+  cur_options = cur_attack->parse_options(argc - 2, argv + 2);
   if (!cur_options) return 1;
   
-  printf("Parsing done, start threads, send packets, perform checks\n");
+  printf("Parsing done, start threads\n");
+  main_loop(cur_attack, cur_options);
   
   return 0;
 }
