@@ -1977,110 +1977,6 @@ int get_array_index(int array_len, unsigned char *ap)
     return -1;
 }
 
-void check_auth(unsigned char *ap)
-{
-// Checking if Authentication DoS is successful
-
-    int len = 0;
-    int t, pos, resp = 0;
-
-    for (t=0; t<5; t++) 
-    {
-	len = 0;
-	while (len < 22) len = osdep_read_packet(pkt_check, MAX_PACKET_LENGTH);
-	// Is this frame from the target?
-	if (! memcmp(ap, pkt_check+16, ETHER_ADDR_LEN))
-	{
-	    // Is this frame an auth response?
-	    if (! memcmp(pkt_check, "\xb0", 1))
-	    {
-		resp = 1;
-		goto exiting;  //Hehe, goto forever! ;)
-	    }
-	}
-    }
-
-    exiting:
-
-    pos = get_array_index(auth_count, ap);
-    if (pos == -1)  // This ap isn't in our array, so we make a new entry for it
-    {
-	memcpy (auth[auth_count], ap, ETHER_ADDR_LEN); //Copy MAC into array
-	auths[auth_count][0] = 0;	  //Set Status Flag 0
-	auths[auth_count][1] = 0;	  //Init nr of responses
-	auths[auth_count][2] = 0;	  //Init nr of missing responses
-	pos = auth_count;                 //Set array position
-	auth_count++;
-	if ((unsigned int) auth_count >=
-		sizeof (auths) / sizeof (auths[0]) ) {
-		fprintf(stderr, "exceeded max auths[]\n");
-		exit (1);
-	}
-    }
-
-    // So far we have the MAC, know if the AP responded and its position in the array.
-    // Checking Status and printf if anything important happened
-
-    int status = auths[pos][0];  // Reading status out of array
-
-    if (status == 0) //Nothing heard from AP so far
-    {
-	if (resp) //AP responding for the first time
-	{
-	    auths[pos][0] = 1; //Status 1 = responding
-	    auths[pos][1]++;
-	    printf("\rAP %02X:%02X:%02X:%02X:%02X:%02X is responding!           \n", ap[0], ap[1], ap[2], ap[3], ap[4], ap[5]);
-	}
-	return;
-    }
-    if (status == 1) //Ap is known to respond
-    {
-	if (resp) //Ap keeps responding
-	{
-	    auths[pos][1]++;
-	    if ((auths[pos][1] % 500 == 0) && (auths[pos][1] != 0)) //AP can handle huge amount of clients, possibly invulnerable
-	    {
-		printf("\rAP %02X:%02X:%02X:%02X:%02X:%02X seems to be INVULNERABLE!      \n", ap[0], ap[1], ap[2], ap[3], ap[4], ap[5]);
-		printf("Device is still responding with %5d clients connected!\n", auths[pos][1]);
-	    }
-	} else { //MISSING RESPONSE!
-	    auths[pos][0] = 2; //Status: Possible candidate for success
-	    auths[pos][2]++;   //Increase counter for missing response
-	}
-	return;
-    }
-    if (status == 2) //Ap stopped responding
-    {
-	if (resp) //False alarm, AP responding again
-	{
-	    auths[pos][0] = 1; //Reset Status
-	    auths[pos][1]++;   //Add another response
-	    auths[pos][2] = 0; //Reset missing response counter
-	} else {
-	    auths[pos][2]++;   //Increase missing response count
-	    if (auths[pos][2] > 50) //50 responses missing => Another one bites the dust!
-	    {
-		auths[pos][0] = 3; //Status: successful
-		printf("\rAP %02X:%02X:%02X:%02X:%02X:%02X seems to be VULNERABLE and may be frozen!\n", ap[0], ap[1], ap[2], ap[3], ap[4], ap[5]);
-		printf("Needed to connect %4d clients to freeze it.\n", auths[pos][1]);
-		if (auths[pos][1] < 150) printf("This is an unexpected low value, AP could still be working but is out of range.\n");
-	    }
-	}
-	return;
-    }
-    if (status == 3) //AP under test
-    {
-	if (resp) //AP is back in action!
-	{
-	    auths[pos][0] = 1; //Reset Status
-	    auths[pos][1] = 0;
-	    auths[pos][2] = 0;
-	    printf("\rAP %02X:%02X:%02X:%02X:%02X:%02X has returned to functionality!     \n", ap[0], ap[1], ap[2], ap[3], ap[4], ap[5]);
-	}
-	return;
-    }
-}
-
 int check_probe(struct pckt mac)
 {
 // USING MODIFIED CODE FROM CHECK_AUTH, perhaps move into function to use by both
@@ -2106,17 +2002,6 @@ int check_probe(struct pckt mac)
 
     exiting:
     return resp;
-}
-
-void print_auth_stats(struct pckt authpkt)
-{
-// Print some information while in Authentication DoS mode
-
-    unsigned char *ap = authpkt.data+4;
-    unsigned char *fc = authpkt.data+10;
-
-    printf("\rConnecting Client: %02X:%02X:%02X:%02X:%02X:%02X", fc[0], fc[1], fc[2], fc[3], fc[4], fc[5]);
-    printf(" to target AP: %02X:%02X:%02X:%02X:%02X:%02X\n", ap[0], ap[1], ap[2], ap[3], ap[4], ap[5]);
 }
 
 void print_probe_stats(int responses, int sent)

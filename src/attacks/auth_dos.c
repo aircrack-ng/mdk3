@@ -27,6 +27,7 @@ struct auth_dos_options {
 pthread_t *sniffer = NULL;
 struct clistauthdos *aps = NULL, *increment_here = NULL;
 unsigned int apcount = 0;
+struct ether_addr client, bssid;
 
 void auth_dos_shorthelp()
 {
@@ -179,7 +180,7 @@ struct ether_addr auth_dos_get_target() {
   } while (start != aps);
   
   if (frozen_only) {
-    printf("\rAll APs in range seem to be frozen, selecting one of them nonetheless.\n");
+    //printf("\rAll APs in range seem to be frozen, selecting one of them nonetheless.\n"); //Too much blah blah
     apnr = random() % apcount;
     start = aps;
     for(i=0; i<apnr; i++) start = start->next;
@@ -200,7 +201,6 @@ struct ether_addr auth_dos_get_target() {
 struct packet auth_dos_getpacket(void *options) {
   struct auth_dos_options *aopt = (struct auth_dos_options *) options;
   struct packet pkt;
-  static struct ether_addr bssid, client;
   static unsigned int nb_sent = 0;
   static time_t t_prev = 0;
   
@@ -213,7 +213,7 @@ struct packet auth_dos_getpacket(void *options) {
      if ((nb_sent % 1024 == 0) || ((time(NULL) - t_prev) >= 5)) {
        t_prev = time(NULL);
        bssid = auth_dos_get_target();
-       printf("\rSelected new target "); print_mac(bssid); printf("          \n");
+       //printf("\rSelected new target "); print_mac(bssid); printf("          \n"); // ToO much blah blah
      }
   }
 
@@ -231,13 +231,14 @@ struct packet auth_dos_getpacket(void *options) {
 }
 
 void auth_dos_print_stats(void *options) {
-
-  
+  options = options; //prevent warning
+  printf("\rConnecting Client "); print_mac(client);
+  printf(" to target AP "); print_mac(bssid); printf(".\n");
 }
 
 void auth_dos_perform_check(void *options) {
-  
-  
+  //unused
+  options = options; //prevent warning
 }
 
 struct attacks load_auth_dos() {
