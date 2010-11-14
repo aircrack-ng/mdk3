@@ -63,20 +63,6 @@
 
 #define LIST_REREAD_PERIOD 3
 
-struct pckt
-{
-	unsigned char *data;
-	int len;
-} pckt;
-
-struct advap
-{
-	char *ssid;
-	struct ether_addr mac;
-} advap;
-
-
-
 struct ia_stats
 {
   int c_authed;
@@ -183,8 +169,6 @@ int wpad_wep = 0, wpad_beacons = 0;          // Counters for WPA downgrade: snif
 #define FLAG_AUTH_RSN     2
 #define FLAG_TKIP         1
 #define FLAG_CCMP         2
-#define SUPP_RATES        "\x01\x08\x82\x84\x8b\x96\x0c\x12\x18\x24"  // supported rates (1;2;5,5;11;6;9;12;18)
-#define EXT_RATES         "\x32\x04\x30\x48\x60\x6c"                  // extended rates (24;36;48;54)
 #define IE_WPA            "\x00\x50\xf2\x01\x01\x00"
 #define IE_WPA_TKIP       "\x00\x50\xf2\x02"
 #define IE_WPA_CCMP       "\x00\x50\xf2\x04"
@@ -204,12 +188,7 @@ int eapol_mcast = FLAG_TKIP;                 // default multicast cipher: TKIP
 
 
 		"TEST MODES:\n"
-		"b   - Beacon Flood Mode\n"
-		"      Sends beacon frames to show fake APs at clients.\n"
-		"      This can sometimes crash network scanners and even drivers!\n"
-		"a   - Authentication DoS mode\n"
-		"      Sends authentication frames to all APs found in range.\n"
-		"      Too many clients freeze or reset some APs.\n"
+
 		"p   - Basic probing and ESSID Bruteforce mode\n"
 		"      Probes AP and checks for answer, useful for checking if SSID has\n"
 		"      been correctly decloaked or if AP is in your sending range.\n"
@@ -236,54 +215,6 @@ int eapol_mcast = FLAG_TKIP;                 // default multicast cipher: TKIP
 		"      network to WEP or disable encryption. More effective in\n"
 		"      combination with social engineering.\n";
 
-
-char use_beac[]="b   - Beacon Flood Mode\n"
-		"      Sends beacon frames to generate fake APs at clients.\n"
-		"      This can sometimes crash network scanners and drivers!\n"
-		"      OPTIONS:\n"
-		"      -n <ssid>\n"
-		"         Use SSID <ssid> instead of randomly generated ones\n"
-		"      -f <filename>\n"
-		"         Read SSIDs from file\n"
-		"      -v <filename>\n"
-		"         Read MACs and SSIDs from file. See example file!\n"
-		"      -d\n"
-		"         Show network as Ad-Hoc node\n"
-		"      -w\n"
-		"         Set WEP bit (Generates encrypted networks)\n"
-		"      -g\n"
-		"         Create networks with 54 Mbit instead of 11 Mbit\n"
-		"      -t\n"
-		"         Create networks using WPA TKIP encryption\n"
-		"      -a\n"
-		"         Create networks using WPA AES encryption\n"
-		"      -m\n"
-		"         Use valid accesspoint MAC from built-in OUI database\n"
-		"      -h\n"
-		"         Hop to channel where network is spoofed\n"
-		"         This makes the test more effective against some devices/drivers\n"
-		"         But it reduces packet rate due to channel hopping.\n"
-		"      -c <chan>\n"
-		"         Create fake networks on channel <chan>. If you want your card to\n"
-		"         hop on this channel, you have to set -h option, too.\n"
-		"      -s <pps>\n"
-		"         Set speed in packets per second (Default: 50)\n";
-
-char use_auth[]="a   - Authentication DoS mode\n"
-		"      Sends authentication packets to all APs found in range.\n"
-		"      Too many clients may freeze or reset several APs.\n"
-		"      OPTIONS:\n"
-		"      -a <ap_mac>\n"
-		"         Only test the specified AP\n"
-		"      -m\n"
-		"         Use valid client MAC from built-in OUI database\n"
-		"      -c\n"
-		"         Do NOT check for test being successful\n"
-		"      -i <ap_mac>\n"
-		"         Perform intelligent test on AP (-a and -c will be ignored)\n"
-		"         This test connects clients to the AP and reinjects sniffed data to keep them alive.\n"
-		"      -s <pps>\n"
-		"         Set speed in packets per second (Default: unlimited)\n";
 
 char use_prob[]="p   - Basic probing and ESSID Bruteforce mode\n"
 		"      Probes AP and checks for answer, useful for checking if SSID has\n"
@@ -524,39 +455,6 @@ void bruteforce_ssid()
 }
 
 
-//ATTACK Beacon Floog
-struct advap get_fakeap_from_file()
-{
-    //TODO: This is a memory leak nightmare
-    // parsed mac, line, ssid, all those need to be freed somewhere!
-  
-    struct advap fakeap;
-    char *line;
-    int t;
-    char *ssid;
-
-skipl:
-
-    line = read_line_from_file(0);
-
-    for (t=0; t<256; t++) {  //Lets see if we have a dirty bitch...
-	if ((line[t] == ' ' && t<11) || (line[t] == '\0' && t<12) || (line[t] == '\n' && t<12)) {
-	    printf("Malformed SSID file! Skipping line: %s\n", line);
-	    goto skipl;
-	}
-	if (line[t] == ' ') break;  // Position of first space stored in t
-    }
-
-    ssid = line+t+1;
-
-    fakeap.ssid = ssid;
-    fakeap.mac = parse_mac(line);
-
-    return fakeap;
-}
-
-
-
 //packet.h
 struct beaconinfo parse_beacon(unsigned char *frame, int framelen)
 {
@@ -586,97 +484,9 @@ struct beaconinfo parse_beacon(unsigned char *frame, int framelen)
     return bi;
 }
 
-//Do we still need this? This looks awful
-//If yes, helpers.h??
-void tvdiff(struct timeval *tv2, struct timeval *tv1, struct timeval *diff)
-{
-  if ((diff == NULL) || (tv2 == NULL && tv1 == NULL))
-    return;
-  else if (tv2 == NULL) {
-    diff->tv_sec  = -1 * tv1->tv_sec;
-    diff->tv_usec = -1 * tv1->tv_usec;
-  } else if (tv1 == NULL) {
-    diff->tv_sec  = tv2->tv_sec;
-    diff->tv_usec = tv2->tv_usec;
-  } else if (tv2->tv_sec == tv1->tv_sec) {
-    /* No wrapping */
-    diff->tv_sec = 0;
-    diff->tv_usec = tv2->tv_usec - tv1->tv_usec;
-  } else {
-    /* Wrapped >= one or more times. Since the final usec value is less than
-     * the original we only increased time by tv1->tv_sec - tv2->tv_sec - 1
-     * seconds.
-     * */
-    diff->tv_sec  = (tv2->tv_sec - tv1->tv_sec) - 1;
-    diff->tv_usec = 1000000l - tv1->tv_usec + tv2->tv_usec;
-    if (diff->tv_usec >= 1000000l) {
-      diff->tv_sec++;
-      diff->tv_usec -= 1000000l;
-    }
-  }
-  if (diff->tv_sec < 0) {
-    diff->tv_sec--;
-    diff->tv_usec -= 1000000l;
-  }
-}
-
 
 /* Sniffing Functions */
 
-//ATTACK Auth Flood
-unsigned char *get_target_ap()
-{
-// Sniffing for beacon frames to find target APs
-// Tries to to find NEW AP when called, saves already reported APs in aps_known[] array
-// If it cannot find a new AP within 100 frames it either choses a random known AP
-// or if no APs were ever found it keeps sniffing.
-
-    int len = 0;
-    int t, u, known;
-    unsigned char rnd;
-
-    keep_waiting: // When nothing ever found this is called after the sniffing loop
-
-    for (t=0; t<100; t++)
-    {
-	len = 0;
-	while (len < 22)
-	    len = osdep_read_packet(pkt_sniff, 4096);
-	known = 0;   // Clear known flag
-	if (! memcmp(pkt_sniff, "\x80", 1)) {   //Filter: let only Beacon frames through
-	    for (u=0; u<aps_known_count; u++)
-	    {
-		if (! memcmp(aps_known[u], pkt_sniff+16, 6)) { 
-		    known = 1; 
-		    break;
-		}   // AP known => Set known flag
-	    }
-	    if (! known)  // AP is NEW, copy MAC to array and return it
-	    {
-		memcpy(aps_known[aps_known_count], pkt_sniff+16, ETHER_ADDR_LEN);
-		aps_known_count++;
-
-		if ((unsigned int) aps_known_count >=
-			sizeof (aps_known) / sizeof (aps_known[0]) ) {
-			fprintf(stderr, "exceeded max aps_known\n");
-			exit (1);
-		}
-
-		return pkt_sniff+16;
-	    }
-	}
-    }
-
-    // No new target found within 100 packets
-    // If there are no beacons at all, wait for some to appear
-    if (aps_known_count == 0)
-	goto keep_waiting;
-
-    // Pick random known AP to try once more
-    rnd = random() % aps_known_count;
-
-    return (unsigned char *) aps_known[rnd];
-}
 
 //unsure, attack? packet.h?
 unsigned char *get_target_deauth()
@@ -2298,34 +2108,6 @@ int check_probe(struct pckt mac)
     return resp;
 }
 
-/* Statistics Printing */
-
-void print_beacon_stats(struct pckt beacon)
-{
-// Print some information in beacon flood mode
-
-    unsigned char *ssid = beacon.data+38;
-    unsigned char len = beacon.data[37];
-    unsigned char chan;
-
-//Is there a 54 MBit speed byte?
-    if(memcmp(&beacon.data[47+len], "\x6c", 1) == 0) {
-        //There is! We need to skip 4 more bytes ahead to get to the channel byte
-        memcpy(&chan, &beacon.data[50+len], 1);
-    }
-    else {
-        memcpy(&chan, &beacon.data[46+len], 1);
-   }
-
-    unsigned char *mac = beacon.data+10;
-
-//Removed '+1' since it always added a strange extra character to the output (?).
-    ssid[len]='\x00';  // NOT GOOD! writes in original frame. Till now no copy was required. So this works
-
-    printf("\rCurrent MAC: %02X:%02X:%02X:%02X:%02X:%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-    printf(" on Channel %2d with SSID: %s\n", chan, ssid);
-}
-
 void print_auth_stats(struct pckt authpkt)
 {
 // Print some information while in Authentication DoS mode
@@ -2524,33 +2306,8 @@ int mdk_parser(int argc, char *argv[])
 
     switch (argv[2][0])
     {
-    case 'b':
-	mode = 'b';
-	    if (! strcmp(argv[t], "-h")) mode = 'B';
 
-    case 'a':
-	mode = 'a';
-	for (t=3; t<argc; t++)
-	{
-	    if (! strcmp(argv[t], "-a")) {
-		  if (! argc > t+1) { printf(use_auth); return -1; }
-		  ap = parse_mac(argv[t+1]);
-		  mode = 'A';
-	    }
-        if (! strcmp(argv[t], "-i")) {
-		  if (! argc > t+1) { printf(use_auth); return -1; }
-		  target = parse_mac(argv[t+1]);
-		  mode = 'i';
-		  usespeed = 1; pps = 500;
-	    }
-	    if (! strcmp(argv[t], "-c")) check = 1;
-	    if (! strcmp(argv[t], "-m")) random_mac = 0;
-	    if (! strcmp(argv[t], "-s")) if (argc > t+1) {
-		pps = strtol(argv[t+1], (char **) NULL, 10);
-		usespeed = 1;
-	    }
-	}
-	break;
+
     case 'p':
 	mode = 'p';
 	for (t=3; t<argc; t++)
@@ -2841,18 +2598,6 @@ int mdk_parser(int argc, char *argv[])
 	switch (mode)
 	{
 
-	case 'a':  // Automated Auth DoS mode
-	    if ((nb_sent % 512 == 0) || (total_time % 30 == 0))  // After 512 packets or 30 seconds, search for new target
-	    {
-		printf ("\rTrying to get a new target AP...                  \n");
-		ap = get_target_ap();
-	    }
-	case 'A':  // Auth DoS mode with target MAC given
-	    frm = create_auth_frame(ap, random_mac, NULL);
-	    break;
-	case 'i':  // Intelligent Auth DoS
-	    frm = intelligent_auth_dos(random_mac);
-	    break;
 	case 'p':
 	    mac = generate_mac(1);
 	    frm = create_probe_frame(ssid, mac, NULL);
@@ -2938,13 +2683,4 @@ statshortcut:
     }   // Play it again, Johnny!
 
     return 0;
-}
-
-/* MAIN */
-
-int main( int argc, char *argv[] )
-
-    int retval = mdk_parser(argc, argv);
-
-    return( retval );
 }

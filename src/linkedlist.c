@@ -103,6 +103,25 @@ struct clistwidsclient *search_client(struct clistwidsclient *c, struct ether_ad
   return NULL;
 }
 
+struct clistauthdos *search_ap(struct clistauthdos *c, struct ether_addr ap)
+{
+  if (!c) return NULL;
+  
+  pthread_mutex_lock(&clist_mutex);
+  struct clistauthdos *first = c;
+
+  do {
+    if (MAC_MATCHES(c->ap, ap)) {
+      pthread_mutex_unlock(&clist_mutex);
+      return c;
+    }
+    c = c->next;
+  } while (c != first);
+
+  pthread_mutex_unlock(&clist_mutex);
+  return NULL;
+}
+
 struct clist *add_to_clist(struct clist *c, unsigned char *data, int status, int data_len)
 {
   pthread_mutex_lock(&clist_mutex);
@@ -167,6 +186,28 @@ struct clistwidsclient *add_to_clistwidsclient(struct clistwidsclient *c, struct
   new_item->data_len = data_len;
   new_item->retry = 0;
   new_item->bssid = bssid;
+
+  pthread_mutex_unlock(&clist_mutex);
+  return new_item;
+}
+
+struct clistauthdos *add_to_clistauthdos(struct clistauthdos *c, struct ether_addr ap, unsigned char status, unsigned int responses, unsigned int missing)
+{
+  pthread_mutex_lock(&clist_mutex);
+  
+  struct clistauthdos *new_item = (struct clistauthdos *) malloc(sizeof(struct clistauthdos));
+  new_item->ap = ap;
+
+  if (c) {
+    new_item->next = c->next;
+    c->next = new_item;
+  } else {
+    new_item->next = new_item;
+  }
+  
+  new_item->status = status;
+  new_item->responses = responses;
+  new_item->missing = missing;
 
   pthread_mutex_unlock(&clist_mutex);
   return new_item;

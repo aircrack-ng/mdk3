@@ -1,7 +1,7 @@
 CFLAGS		= -g -O3 -Wall -Wextra
 LINKFLAGS	= -lpthread
 
-OBJS		= attacks.o dummy.o beacon_flood.o
+OBJS		= attacks.o beacon_flood.o auth_dos.o
 
 all: $(OBJS)
 

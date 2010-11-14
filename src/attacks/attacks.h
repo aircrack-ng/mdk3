@@ -2,6 +2,7 @@
 #define HAVE_ATTACKS_H
 
 #include "beacon_flood.h"
+#include "auth_dos.h"
 #include "../packet.h"
 
 typedef void		(*fp) (void);

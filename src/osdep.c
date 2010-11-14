@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <errno.h>
+#include <stdlib.h>
 
 #include "osdep/osdep.h"
 #include "osdep.h"
@@ -36,10 +37,10 @@ int osdep_start(char *interface)
 }
 
 
-int osdep_send_packet(unsigned char *buf, size_t count)
+int osdep_send_packet(struct packet *pkt)
 {
 	struct wif *wi = _wi_out; /* XXX globals suck */
-	if (wi_write(wi, buf, count, NULL) == -1) {
+	if (wi_write(wi, pkt->data, pkt->len, NULL) == -1) {
 		switch (errno) {
 		case EAGAIN:
 		case ENOBUFS:
@@ -55,23 +56,27 @@ int osdep_send_packet(unsigned char *buf, size_t count)
 }
 
 
-int osdep_read_packet(unsigned char *buf, size_t count)
+struct packet osdep_read_packet()
 {
 	struct wif *wi = _wi_in; /* XXX */
 	int rc;
+	struct packet pkt;
+	
+	pkt.data = malloc(MAX_PACKET_SIZE);
+	
+	do {
+	  rc = wi_read(wi, pkt.data, MAX_PACKET_SIZE, NULL);
+	  if (rc == -1) {
+	    perror("wi_read()");
+	    free(pkt.data);
+	    pkt.len = 0;
+	    return pkt;
+	  }
+	} while (rc < 1);
 
-	rc = wi_read(wi, buf, count, NULL);
-	if (rc == -1) {
-		switch (errno) {
-		case EAGAIN:
-			return 0;
-		}
-
-		perror("wi_read()");
-		return -1;
-	}
-
-	return rc;
+	pkt.len = rc;
+	pkt.data = realloc(pkt.data, pkt.len);
+	return pkt;
 }
 
 

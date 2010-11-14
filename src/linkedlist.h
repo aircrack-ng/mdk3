@@ -30,7 +30,16 @@ struct clistwidsclient
   struct clistwidsap *bssid;
 };
 
-//All these calls are thread-safe via a single pthrea_mutex!
+struct clistauthdos
+{
+  struct ether_addr ap;
+  unsigned char status;
+  unsigned int responses;
+  unsigned int missing;
+  struct clistauthdos *next;
+};
+
+//All these calls are thread-safe via a single pthread_mutex!
 
 struct clist *search_status(struct clist *c, int desired_status);
 
@@ -42,10 +51,14 @@ struct clistwidsap *search_bssid(struct clistwidsap *c, struct ether_addr desire
 
 struct clistwidsclient *search_client(struct clistwidsclient *c, struct ether_addr mac);
 
+struct clistauthdos *search_ap(struct clistauthdos *c, struct ether_addr ap);
+
 struct clist *add_to_clist(struct clist *c, unsigned char *data, int status, int data_len);
 
 struct clistwidsap *add_to_clistwidsap(struct clistwidsap *c, struct ether_addr bssid, int channel, unsigned char *capa);
 
 struct clistwidsclient *add_to_clistwidsclient(struct clistwidsclient *c, struct ether_addr mac, int status, unsigned char *data, int data_len, struct clistwidsap *bssid);
+
+struct clistauthdos *add_to_clistauthdos(struct clistauthdos *c, struct ether_addr ap, unsigned char status, unsigned int responses, unsigned int missing);
 
 #endif

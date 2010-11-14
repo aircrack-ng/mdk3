@@ -61,7 +61,7 @@ void main_loop(struct attacks *att, void *options) {
     if ((inject.data == NULL) || (inject.len == 0)) break;
     
     //Send packet
-    osdep_send_packet(inject.data, inject.len);
+    osdep_send_packet(&inject);
     free(inject.data);
     p_sent_ps++;
     p_sent++;
