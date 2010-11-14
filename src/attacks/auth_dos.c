@@ -91,19 +91,24 @@ void *auth_dos_parse(int argc, char *argv[]) {
 void auth_dos_sniffer() {
   struct packet sniffed;
   struct ieee_hdr *hdr;
-  struct ether_addr *bssid;
+  struct ether_addr *bssid, *dup;
   struct clistauthdos *curap;
+  static struct ether_addr dupdetect;
   
   while(1) {
     sniffed = osdep_read_packet();
     if (sniffed.len == 0) exit(-1);
+    
+    dup = get_destination(&sniffed);
+    if (MAC_MATCHES(dupdetect, *dup)) continue;  //Duplicate ignored
+    MAC_COPY(dupdetect, *dup);
     
     //Check for APs in status UP and missing over 50!
     if (aps) {
       curap = aps;
       do {
 	if ((curap->status == AUTH_DOS_STATUS_UP) && (curap->missing > 50)) {
-	  printf("\rAP "); print_mac(curap->ap); printf(" has stopped responding and seems to be frozen.\n");
+	  printf("\rAP "); print_mac(curap->ap); printf(" has stopped responding and seems to be frozen after %d clients.\n", curap->responses);
 	  curap->status = AUTH_DOS_STATUS_FROZEN;
 	}
 	curap = curap->next;
@@ -127,11 +132,13 @@ void auth_dos_sniffer() {
       
       if (authpack->seq == htole16((uint16_t) 2)) {
 	if (authpack->status == 0) {
+	  curap->responses++;
 	  if (curap->status == AUTH_DOS_STATUS_NEW) {
 	    printf("\rAP "); print_mac(*bssid); printf(" is responding!              \n");
 	    curap->status = AUTH_DOS_STATUS_UP;
 	    curap->missing = 0;
-	    curap->responses++;
+	  } else if ((curap->status == AUTH_DOS_STATUS_UP) && (! (curap->responses % 500))) {
+	     printf("\rAP "); print_mac(*bssid); printf(" is currently handling %d clients!!!\n", curap->responses);
 	  }
 	  if (curap->status == AUTH_DOS_STATUS_FROZEN) {
 	    printf("\rAP "); print_mac(*bssid); printf(" is accepting connections again!\n");
@@ -141,7 +148,7 @@ void auth_dos_sniffer() {
 	  }
 	} else {
 	  if (curap->status != AUTH_DOS_STATUS_FROZEN) {
-	    printf("\rAP "); print_mac(*bssid); printf(" is reporting ERRORs and denies connections!\n");
+	    printf("\rAP "); print_mac(*bssid); printf(" is reporting ERRORs and denies connections after %d clients!\n", curap->responses);
 	    curap->status = AUTH_DOS_STATUS_FROZEN;
 	  }
 	}
