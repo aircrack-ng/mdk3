@@ -31,6 +31,8 @@
 
 #define DEFAULT_LISTEN_INTERVAL	0x0001
 
+#define BEACON_TAGTYPE_SSID	0x00
+
 struct packet {
   unsigned char *data;
   unsigned int len;
@@ -91,5 +93,8 @@ struct packet create_disassoc(struct ether_addr destination, struct ether_addr s
 
 //Capabilities and SSID should match AP, so just copy them from one of its beacon frames
 struct packet create_assoc_req(struct ether_addr client, struct ether_addr bssid, uint16_t capabilities, char *ssid, unsigned char bitrate);
+
+//Copy SSID from Beacon Frame into String. Must free afterwards! Returns NULL on Errors (no beacon frame, no SSID tag found)
+char *get_ssid(struct packet *pkt);
 
 #endif

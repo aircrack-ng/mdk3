@@ -194,8 +194,11 @@ void test_packet() {
     ssid = generate_ssid();
     pkt = create_beacon(bssid, ssid, (uint8_t) (random() % 14), enc[random() % 4], (random() % 2) * 54, random() % 2);
     dump_packet(&pkt);
-    free(pkt.data);
     free(ssid);
+    ssid = get_ssid(&pkt);
+    printf("SSID found in beacon: %s\n", ssid);
+    free(ssid);
+    free(pkt.data);
   }
   printf("Creating random auths :)\n");
   for(i=0; i<20; i++) {

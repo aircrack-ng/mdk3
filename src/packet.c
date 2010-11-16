@@ -65,7 +65,6 @@ void create_ieee_hdr(struct packet *pkt, uint8_t type, char dsflags, uint16_t du
   if ((hdr->flags & 0x03) == 0x03) pkt->len += 6;	//Extra MAC in WDS packets
 }
 
-
 struct ether_addr *get_addr(struct packet *pkt, char type) {
   uint8_t dsflags;
   struct ieee_hdr *hdr;
@@ -294,4 +293,34 @@ struct packet create_assoc_req(struct ether_addr client, struct ether_addr bssid
   
   assoc.data = realloc(assoc.data, assoc.len);
   return assoc;
+}
+
+char *get_ssid(struct packet *pkt) {
+  char *ssid = NULL;
+  struct ieee_hdr *hdr = (struct ieee_hdr *) (pkt->data);
+  unsigned char *tags = pkt->data + sizeof(struct ieee_hdr) + sizeof(struct beacon_fixed);
+  
+  if (hdr->type != IEEE80211_TYPE_BEACON) return NULL; //Thats not a beacon, therefor it has no SSID
+ 
+  while (tags < (pkt->data + pkt->len)) {
+    if (tags[0] == BEACON_TAGTYPE_SSID) {
+      ssid = malloc(tags[1] + 1);
+      memcpy(ssid, tags + 2, tags[1]);
+      ssid[tags[1]] = 0x00;
+      return ssid;
+    }
+    tags += tags[1] + 2;
+  }
+  
+  printf("No SSID found in Beacon Frame\n");
+  return NULL;
+}
+
+uint16_t get_capabilities(struct packet *pkt) {
+  struct ieee_hdr *hdr = (struct ieee_hdr *) (pkt->data);
+  struct beacon_fixed *bf = (struct beacon_fixed *) (pkt->data + sizeof(struct ieee_hdr));
+  
+  //TODO: Check if is beacon
+  
+  return le16toh(bf->capabilities);
 }
