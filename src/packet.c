@@ -320,7 +320,7 @@ uint16_t get_capabilities(struct packet *pkt) {
   struct ieee_hdr *hdr = (struct ieee_hdr *) (pkt->data);
   struct beacon_fixed *bf = (struct beacon_fixed *) (pkt->data + sizeof(struct ieee_hdr));
   
-  //TODO: Check if is beacon
-  
+  if (hdr->type != IEEE80211_TYPE_BEACON) return 0; //Thats not a beacon, therefor it has no capabilities
+
   return le16toh(bf->capabilities);
 }

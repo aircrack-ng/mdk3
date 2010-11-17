@@ -180,6 +180,7 @@ void test_greylist() {
 void test_packet() {
   struct packet pkt;
   int i;
+  uint16_t caps;
   struct ether_addr bssid, station;
   char *ssid;
   char enc[4] = {'n', 'w', 't', 'a'};
@@ -196,7 +197,9 @@ void test_packet() {
     dump_packet(&pkt);
     free(ssid);
     ssid = get_ssid(&pkt);
+    caps = get_capabilities(&pkt);
     printf("SSID found in beacon: %s\n", ssid);
+    printf("Capabilities: %04X\n", caps);
     free(ssid);
     free(pkt.data);
   }

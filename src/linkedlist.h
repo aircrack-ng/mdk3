@@ -61,4 +61,6 @@ struct clistwidsclient *add_to_clistwidsclient(struct clistwidsclient *c, struct
 
 struct clistauthdos *add_to_clistauthdos(struct clistauthdos *c, struct ether_addr ap, unsigned char status, unsigned int responses, unsigned int missing);
 
+struct clistauthdos *search_authdos_status(struct clistauthdos *c, int desired_status);
+
 #endif

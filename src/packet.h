@@ -13,6 +13,7 @@
 #define IEEE80211_TYPE_DEAUTH	0xC0
 #define IEEE80211_TYPE_DISASSOC	0xA0
 #define IEEE80211_TYPE_ASSOCREQ	0x00
+#define IEEE80211_TYPE_ASSOCRES	0x10
 
 #define DEFAULT_BEACON_INTERVAL	0x64
 #define DEFAULT_11B_RATES	"\x01\x04\x82\x84\x8b\x96"
@@ -96,5 +97,7 @@ struct packet create_assoc_req(struct ether_addr client, struct ether_addr bssid
 
 //Copy SSID from Beacon Frame into String. Must free afterwards! Returns NULL on Errors (no beacon frame, no SSID tag found)
 char *get_ssid(struct packet *pkt);
+
+uint16_t get_capabilities(struct packet *pkt);
 
 #endif

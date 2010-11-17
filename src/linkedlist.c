@@ -212,3 +212,21 @@ struct clistauthdos *add_to_clistauthdos(struct clistauthdos *c, struct ether_ad
   pthread_mutex_unlock(&clist_mutex);
   return new_item;
 }
+
+struct clistauthdos *search_authdos_status(struct clistauthdos *c, int desired_status) {
+  if (!c) return NULL;
+  
+  pthread_mutex_lock(&clist_mutex);
+  struct clistauthdos *first = c;
+
+  do {
+    if (c->status == desired_status) {
+      pthread_mutex_unlock(&clist_mutex);
+      return c;
+    }
+    c = c->next;
+  } while (c != first);
+
+  pthread_mutex_unlock(&clist_mutex);
+  return NULL;
+}
