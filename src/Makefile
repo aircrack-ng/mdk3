@@ -12,7 +12,7 @@ OBJS		= debug.o helpers.o mac_addr.o linkedlist.o greylist.o dumpfile.o packet.o
 OBJS_OSD	= osdep.o channelhopper.o
 
 ATTACKS		= attacks
-OBJ_ATT		= attacks/*.o
+OBJ_ATT		= $(shell ls attacks/*.h | sed s/"\.h"/"\.o"/g)
 
 all: osd mdk3 $(OBJ_ATT)
 
@@ -37,10 +37,11 @@ install: mdk3
 	$(MAKE) -C $(ATTACKS) install
 	$(MAKE) -C $(OSD) install
 
+.PHONY : clean
 clean:
 	rm -f mdk3
 	rm -f $(OBJS) $(OBJS_OSD)
-	rm -f ../test
+	rm -f ../test *.o
 	$(MAKE) -C $(OSD) clean
 	$(MAKE) -C $(ATTACKS) clean
 

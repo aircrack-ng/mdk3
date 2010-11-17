@@ -1,13 +1,14 @@
 CFLAGS		= -g -O3 -Wall -Wextra
 LINKFLAGS	= -lpthread
 
-OBJS		= attacks.o beacon_flood.o auth_dos.o
+OBJS		= $(shell ls *.h | sed s/"\.h"/"\.o"/g)
 
 all: $(OBJS)
 
 install: $(OBJS)
 
+.PHONY: clean
 clean:
-	rm -f $(OBJS)
+	rm -f $(OBJS) *.o
 
 distclean: clean
