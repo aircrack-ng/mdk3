@@ -167,10 +167,6 @@ int eapol_mcast = FLAG_TKIP;                 // default multicast cipher: TKIP
 
 		"TEST MODES:\n"
 
-		"p   - Basic probing and ESSID Bruteforce mode\n"
-		"      Probes AP and checks for answer, useful for checking if SSID has\n"
-		"      been correctly decloaked or if AP is in your sending range.\n"
-		"      SSID Bruteforcing is also possible with this mode.\n"
 		"d   - Deauthentication / Disassociation aka \"Amok Mode\"\n"
 		"      Waits for data packets and disconnects their source and destination\n"
 		"      with Deauthentication and Disassociation messages.\n"
@@ -192,27 +188,6 @@ int eapol_mcast = FLAG_TKIP;                 // default multicast cipher: TKIP
 		"      With this test you can check if the sysadmin will try setting his\n"
 		"      network to WEP or disable encryption. More effective in\n"
 		"      combination with social engineering.\n";
-
-
-char use_prob[]="p   - Basic probing and ESSID Bruteforce mode\n"
-		"      Probes AP and checks for answer, useful for checking if SSID has\n"
-		"      been correctly decloaked or if AP is in your sending range\n"
-		"      Use -f and -t option to enable SSID Bruteforcing.\n"
-		"      OPTIONS:\n"
-		"      -e <ssid>\n"
-		"         Tell mdk3 which SSID to probe for\n"
-		"      -f <filename>\n"
-		"         Read lines from file for bruteforcing hidden SSIDs\n"
-		"      -t <bssid>\n"
-		"         Set MAC adress of target AP\n"
-		"      -s <pps>\n"
-		"         Set speed (Default: unlimited, in Bruteforce mode: 300)\n"
-		"      -b <character set>\n"
-		"         Use full Bruteforce mode (recommended for short SSIDs only!)\n"
-		"         Use this switch only to show its help screen.\n"
-		"      -r\n"
-		"         Activates RenderMan's discovery tool to politely scan hidden\n"
-		"         networks for a list of known SSIDs\n";
 
 char use_deau[]="d   - Deauthentication / Disassociation Amok Mode\n"
 		"      Kicks everybody found from AP\n"

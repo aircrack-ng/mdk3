@@ -38,9 +38,8 @@ void beacon_flood_shorthelp()
 
 void beacon_flood_longhelp()
 {
-  printf( "      Sends beacon frames to generate fake APs at clients.\n"
-	  "      This can sometimes crash network scanners and drivers!\n"
-	  "      OPTIONS:\n"
+  printf( "  Sends beacon frames to generate fake APs at clients.\n"
+	  "  This can sometimes crash network scanners and drivers!\n"
 	  "      -n <ssid>\n"
 	  "         Use SSID <ssid> instead of randomly generated ones\n"
 	  "      -f <filename>\n"

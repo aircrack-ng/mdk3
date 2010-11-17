@@ -3,6 +3,8 @@
 
 #include "beacon_flood.h"
 #include "auth_dos.h"
+#include "probing.h"
+
 #include "../packet.h"
 
 typedef void		(*fp) (void);
