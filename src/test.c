@@ -9,6 +9,7 @@
 #include "linkedlist.h"
 #include "greylist.h"
 #include "dumpfile.h"
+#include "brute.h"
 
 void print_chars_decimal(char *values, int count) {
   int i;
@@ -250,6 +251,31 @@ void test_packet() {
   printf("done!\n");
 }
 
+void test_brute() {
+  char word[3] = { 'x', 'x', 0x00 }; //Can't init with "xx", would be READ ONLY!
+  int sl;
+  char *fresh = NULL;
+  
+  printf("Words after %s, using lowercase and numbers:\n", word);
+  sl = strlen(word);
+  
+  while(get_brute_word("ln", word, sl)) {
+    printf("%s, ", word);
+    fflush(stdout);
+  }
+  
+  printf("Keyspace exhausted!\n");
+  
+  printf("Fresh 2 char words:\n");
+  while((fresh = get_brute_word("u", fresh, 2))) { //Yep, use assignment as truth value.
+    printf("%s, ", fresh);
+    fflush(stdout);    
+  }
+  printf("Keyspace exhausted!\n");
+  
+  free(fresh);
+}
+
 int main() {
   
   printf("mdk3 Implementation Tests\n\n");
@@ -261,6 +287,7 @@ int main() {
   test_greylist();
   test_packet();
   test_mac_addr();
+  test_brute();
 
   stop_dump();
   return 0;
