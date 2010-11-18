@@ -116,7 +116,7 @@ int main(int argc, char *argv[]) {
   cur_options = cur_attack->parse_options(argc - 2, argv + 2);
   if (!cur_options) return 1;
   
-  printf("Parsing done, start threads\n");
+  //Parsing done, start attacks
   main_loop(cur_attack, cur_options);
   
   return 0;

@@ -2,8 +2,12 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+#include <pthread.h>
 
 #include "probing.h"
+#include "../osdep.h"
+#include "../helpers.h"
+#include "../brute.h"
 
 #define PROBING_MODE 'p'
 #define PROBING_NAME "SSID Probing and Bruteforcing"
@@ -19,7 +23,8 @@ struct probing_options {
 };
 
 //Global things, shared by packet creation and stats printing
-
+unsigned int probes, answers;
+char *filessid = NULL;
 
 void probing_shorthelp()
 {
@@ -97,6 +102,7 @@ void *probing_parse(int argc, char *argv[]) {
 	  printf("Select only one mode please (either -e, -f, -b or -r), not two of them!\n"); return NULL; }
 	popt->charsets = malloc(strlen(optarg) + 1);
 	strcpy(popt->charsets, optarg);
+      break;
       case 'p':
 	if (popt->renderman || popt->ssid || popt->filename) { 
 	  printf("Select only one mode please (either -e, -f, -b or -r), not two of them!\n"); return NULL; }
@@ -115,13 +121,23 @@ void *probing_parse(int argc, char *argv[]) {
     }
   }
   
-  if ((! popt->target) && (popt->filename || popt->charsets)) {
+  if ((! popt->target) && popt->charsets) {
     printf("Bruteforce modes need a target MAC address (-t)\n");
     return NULL;
   }
   
+  if ((! popt->target) && popt->filename) {
+    printf("No target (-t) specified, will display ALL responses!\n");
+  }
+  
   if ((! popt->charsets) && popt->proceed) {
     printf("You need to specify a character set (-b)\n");
+    return NULL;
+  }
+  
+  if (!popt->filename && !popt->ssid && !popt->charsets && !popt->renderman) {
+    probing_longhelp();
+    printf("\nOptions are completely missing.\n");
     return NULL;
   }
   
@@ -130,22 +146,117 @@ void *probing_parse(int argc, char *argv[]) {
 
 
 struct packet probing_getpacket(void *options) {
-
+  struct probing_options *popt = (struct probing_options *) options;
+  struct packet pkt;
+  struct ether_addr src;
+  
+  //TODO: GET SSID LEN FROM BEACON AND SKIP WORDS IN WORDLIST!
+  
+  sleep_till_next_packet(popt->speed);
+  src = generate_mac(MAC_KIND_CLIENT);
+  
+  if (popt->ssid) {
+    pkt = create_probe(src, popt->ssid, 54);
+    probes++;
+    return pkt;
+  }
+  if (popt->filename) {
+    if (filessid) free(filessid);
+    filessid = read_next_line(popt->filename, 0);
+    if (!filessid) {
+      printf("\nWordlist completed.\n");
+      sleep(3);	//Waiting for some leftover packets in queue
+      exit(0);
+    }
+    pkt = create_probe(src, filessid, 54);
+    return pkt;
+  }
+  if (popt->charsets) {
+    //TODO: GET SSID LEN, check if proceed has the same length
+    //TODO: if no length found, start at len 1
+    popt->proceed = get_brute_word(popt->charsets, popt->proceed, 4);
+    if (popt->proceed == NULL) { //Keyspace exhausted, next len or exit?
+      //TODO: next length with last = NULL
+      pkt.len = 0;
+      return pkt;
+    }
+    pkt = create_probe(src, popt->proceed, 54);
+    return pkt;
+  }
+  
+  pkt.len = 0;
+  return pkt;
 }
 
 
 void probing_print_stats(void *options) {
   struct probing_options *popt = (struct probing_options *) options;
+  unsigned int perc;
   
-
+  if (popt->ssid) {
+    perc = ((answers * 100) / probes);
+    printf("\rAP responded on %d of %d probes (%d percent)                  \n", answers, probes, perc);
+    answers = probes = 0;
+  }
+  
+  if (popt->filename) {
+    printf("\rTrying SSID: %s                                           \n", filessid);
+  }
+  
+  if (popt->charsets) {
+    printf("\rTrying SSID: %s                                           \n", popt->proceed);
+  }
 }
 
 
+void probing_sniffer(void *options) {
+  struct probing_options *popt = (struct probing_options *) options;
+  struct packet pkt;
+  struct ether_addr *dup, dupdetect, *ap;
+  struct ieee_hdr *hdr;
+  char *ssid;
+  
+  while(1) {
+    pkt = osdep_read_packet();
+    if (pkt.len == 0) exit(-1);
+    hdr = (struct ieee_hdr *) pkt.data;
+    
+    if (popt->ssid) { //Skip duplicates only in non-bruteforce modes
+      dup = get_destination(&pkt);
+      if (MAC_MATCHES(dupdetect, *dup)) continue;  //Duplicate ignored
+      MAC_COPY(dupdetect, *dup);
+      
+      if (hdr->type == IEEE80211_TYPE_PROBERES) answers++;
+    }
+    
+    if (popt->filename || popt->charsets) {
+      ap = get_source(&pkt);
+      if (hdr->type == IEEE80211_TYPE_PROBERES) {
+	if (popt->target && MAC_MATCHES(*ap, *(popt->target))) {
+	  ssid = get_ssid(&pkt);
+	  printf("\rProbe Response from target AP with SSID %s                \n", ssid);
+	  printf("Job's done, have a nice day :)\n");
+	  exit(0);
+	} else if (! popt->target) {
+	  printf("\rProbe response from "); print_mac(*ap);
+	  ssid = get_ssid(&pkt);
+	  printf(" with SSID %s                \n", ssid);
+	  free(ssid);
+	}
+      }
+    }
+  }
+}
 
 void probing_perform_check(void *options) {
-  //unused
-  options = options; //prevent warning
+  static pthread_t *sniffer = NULL;
+  
+  if (!sniffer) {
+    sniffer = malloc(sizeof(pthread_t));
+    pthread_create(sniffer, NULL, (void *) probing_sniffer, (void *) options);
+  }
 }
+
 
 struct attacks load_probing() {
   struct attacks this_attack;

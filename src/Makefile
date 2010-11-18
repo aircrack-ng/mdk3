@@ -14,7 +14,10 @@ OBJS_OSD	= osdep.o channelhopper.o
 ATTACKS		= attacks
 OBJ_ATT		= $(shell ls attacks/*.h | sed s/"\.h"/"\.o"/g)
 
-all: osd mdk3 $(OBJ_ATT)
+all: osd mdk3 $(OBJ_ATT) att
+
+att:
+	$(MAKE) -C $(ATTACKS)
 
 osd:
 	$(MAKE) -C $(OSD)
@@ -26,6 +29,7 @@ $(OBJ_ATT):
 	$(MAKE) -C $(ATTACKS)
 
 mdk3: mdk3.c $(OSD)/libosdep.a $(OBJS) $(OBJS_OSD) $(OBJ_ATT)
+	$(MAKE) -C $(ATTACKS)
 	$(CC) $(CFLAGS) $(^) -o $(@) $(LIBS) $(LINKFLAGS)
 
 test: test.c $(OBJS)

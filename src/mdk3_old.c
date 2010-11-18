@@ -1460,42 +1460,6 @@ int get_array_index(int array_len, unsigned char *ap)
     return -1;
 }
 
-int check_probe(struct pckt mac)
-{
-// USING MODIFIED CODE FROM CHECK_AUTH, perhaps move into function to use by both
-
-    int len = 0;
-    int t, resp = 0;
-
-    for (t=0; t<3; t++) 
-    {
-	len = 0;
-	len = osdep_read_packet(pkt_check, MAX_PACKET_LENGTH);
-	// Is this frame for fake probing station?
-	if (! memcmp(mac.data, pkt_check+4, ETHER_ADDR_LEN))
-	{
-	    // Is this frame a probe response?
-	    if (! memcmp(pkt_check, "\x50", 1))
-	    {
-		resp = 1;
-		goto exiting;  //Again, goto forever! ;)
-	    }
-	}
-    }
-
-    exiting:
-    return resp;
-}
-
-void print_probe_stats(int responses, int sent)
-{
-    int perc;
-
-    perc = ((responses * 100) / sent);
-
-    printf("\rAP responded on %d of %d probes (%d percent)                  \n", responses, sent, perc);
-}
-
 void print_deauth_stats(struct pckt packet)
 {
 // Print some information while in Deauthentication DoS mode
@@ -1517,14 +1481,6 @@ void print_deauth_stats(struct pckt packet)
 	printf(" on channel: %d\n", osdep_get_channel());
     }
 
-}
-
-void print_ssid_brute_stats(struct pckt packet)
-{
-    unsigned char *ssid = packet.data+26;
-    packet.data[26+packet.data[25]] = '\x00';
-
-    printf("\rTrying SSID: %s                                \n", ssid);
 }
 
 void print_wids_stats()

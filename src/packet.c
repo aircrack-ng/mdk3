@@ -300,7 +300,8 @@ char *get_ssid(struct packet *pkt) {
   struct ieee_hdr *hdr = (struct ieee_hdr *) (pkt->data);
   unsigned char *tags = pkt->data + sizeof(struct ieee_hdr) + sizeof(struct beacon_fixed);
   
-  if (hdr->type != IEEE80211_TYPE_BEACON) return NULL; //Thats not a beacon, therefor it has no SSID
+  if ((hdr->type != IEEE80211_TYPE_BEACON) && (hdr->type != IEEE80211_TYPE_PROBERES))return NULL;
+  //Thats neither a beacon nor a probe response, therefor it has no SSID
  
   while (tags < (pkt->data + pkt->len)) {
     if (tags[0] == BEACON_TAGTYPE_SSID) {
