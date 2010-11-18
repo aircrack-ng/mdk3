@@ -400,7 +400,7 @@ struct packet auth_dos_intelligent_getpacket(struct auth_dos_options *aopt) {
       if (hdr->type == IEEE80211_TYPE_BEACON) {
         ap = get_bssid(&beacon);
         if (MAC_MATCHES(*ap, *(aopt->target))) {
-	  ssid = get_ssid(&beacon);
+	  ssid = get_ssid(&beacon, NULL);
 	  capabilities = get_capabilities(&beacon);
 	  printf("Capabilities are: 0x%04X\n", capabilities);
 	  printf("SSID is: %s\n", ssid);

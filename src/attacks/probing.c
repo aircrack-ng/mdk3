@@ -145,12 +145,47 @@ void *probing_parse(int argc, char *argv[]) {
 }
 
 
+unsigned int get_ssid_len(struct ether_addr target) {
+  struct ieee_hdr *hdr;
+  struct packet pkt;
+  struct ether_addr *ap;
+  char *ssid;
+  unsigned char ssidlen;
+  
+  printf("Waiting for a beacon frame from target to get its SSID length.\n");
+  
+  while(1) {
+    pkt = osdep_read_packet();
+    if (pkt.len == 0) exit(-1);
+    hdr = (struct ieee_hdr *) pkt.data;
+    
+    if (hdr->type == IEEE80211_TYPE_BEACON) {
+      ap = get_source(&pkt);
+      if (MAC_MATCHES(*ap, target)) {
+	ssid = get_ssid(&pkt, &ssidlen);
+	if (ssidlen < 2) return 0;	//SSID lengths 0 and 1 are known to be "full hidden", ie no length info :(
+	if (strlen(ssid) == ssidlen) {
+	  printf("WARNING: SSID DOES NOT SEEM TO BE HIDDEN, SSID IS %s\n", ssid);
+	  printf("mdk3 will still continue, but its unlikely that this SSID is wrong\n");
+	}
+	return ssidlen;
+      }
+    }
+  }
+}
+
+
 struct packet probing_getpacket(void *options) {
   struct probing_options *popt = (struct probing_options *) options;
   struct packet pkt;
   struct ether_addr src;
+  static unsigned int ssidlen = 0, havessidlen = 0, brutelen = 1;
   
-  //TODO: GET SSID LEN FROM BEACON AND SKIP WORDS IN WORDLIST!
+  if (! havessidlen && popt->target) {
+    ssidlen = get_ssid_len(*(popt->target));
+    printf("SSID length is %d\n", ssidlen);
+    havessidlen = 1;
+  }
   
   sleep_till_next_packet(popt->speed);
   src = generate_mac(MAC_KIND_CLIENT);
@@ -162,21 +197,36 @@ struct packet probing_getpacket(void *options) {
   }
   if (popt->filename) {
     if (filessid) free(filessid);
-    filessid = read_next_line(popt->filename, 0);
-    if (!filessid) {
-      printf("\nWordlist completed.\n");
-      sleep(3);	//Waiting for some leftover packets in queue
-      exit(0);
-    }
+    do {
+      filessid = read_next_line(popt->filename, 0);
+      if (!filessid) {
+	printf("\nWordlist completed.\n");
+	sleep(3);	//Waiting for some leftover packets in queue
+	exit(0);
+      }
+      if (!popt->target) break;
+      if (!ssidlen) break;
+    } while (strlen(filessid) != ssidlen);
     pkt = create_probe(src, filessid, 54);
     return pkt;
   }
   if (popt->charsets) {
-    //TODO: GET SSID LEN, check if proceed has the same length
-    //TODO: if no length found, start at len 1
-    popt->proceed = get_brute_word(popt->charsets, popt->proceed, 4);
-    if (popt->proceed == NULL) { //Keyspace exhausted, next len or exit?
-      //TODO: next length with last = NULL
+    if (ssidlen && popt->proceed && (ssidlen != strlen(popt->proceed))) {
+      printf("SSID length and length of bruteforcer start word are not equal. That won't work ;)\n");
+      pkt.len = 0; return pkt;
+    }
+    if (ssidlen) {
+      popt->proceed = get_brute_word(popt->charsets, popt->proceed, ssidlen);
+    } else {
+      popt->proceed = get_brute_word(popt->charsets, popt->proceed, brutelen);
+      if (popt->proceed == NULL) {
+	brutelen++;
+	popt->proceed = get_brute_word(popt->charsets, NULL, brutelen);
+      }
+    }
+    if (popt->proceed == NULL) { //Keyspace exhausted
+      printf("\nKeyspace exhausted.\n");
+      sleep(3);
       pkt.len = 0;
       return pkt;
     }
@@ -233,13 +283,13 @@ void probing_sniffer(void *options) {
       ap = get_source(&pkt);
       if (hdr->type == IEEE80211_TYPE_PROBERES) {
 	if (popt->target && MAC_MATCHES(*ap, *(popt->target))) {
-	  ssid = get_ssid(&pkt);
+	  ssid = get_ssid(&pkt, NULL);
 	  printf("\rProbe Response from target AP with SSID %s                \n", ssid);
 	  printf("Job's done, have a nice day :)\n");
 	  exit(0);
 	} else if (! popt->target) {
 	  printf("\rProbe response from "); print_mac(*ap);
-	  ssid = get_ssid(&pkt);
+	  ssid = get_ssid(&pkt, NULL);
 	  printf(" with SSID %s                \n", ssid);
 	  free(ssid);
 	}

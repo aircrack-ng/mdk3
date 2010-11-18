@@ -295,7 +295,7 @@ struct packet create_assoc_req(struct ether_addr client, struct ether_addr bssid
   return assoc;
 }
 
-char *get_ssid(struct packet *pkt) {
+char *get_ssid(struct packet *pkt, unsigned char *ssidlen) {
   char *ssid = NULL;
   struct ieee_hdr *hdr = (struct ieee_hdr *) (pkt->data);
   unsigned char *tags = pkt->data + sizeof(struct ieee_hdr) + sizeof(struct beacon_fixed);
@@ -306,6 +306,7 @@ char *get_ssid(struct packet *pkt) {
   while (tags < (pkt->data + pkt->len)) {
     if (tags[0] == BEACON_TAGTYPE_SSID) {
       ssid = malloc(tags[1] + 1);
+      if (ssidlen) *ssidlen = tags[1];
       memcpy(ssid, tags + 2, tags[1]);
       ssid[tags[1]] = 0x00;
       return ssid;

@@ -97,7 +97,9 @@ struct packet create_disassoc(struct ether_addr destination, struct ether_addr s
 struct packet create_assoc_req(struct ether_addr client, struct ether_addr bssid, uint16_t capabilities, char *ssid, unsigned char bitrate);
 
 //Copy SSID from Beacon Frame into String. Must free afterwards! Returns NULL on Errors (no beacon frame, no SSID tag found)
-char *get_ssid(struct packet *pkt);
+//SSID len is also reported, because on hidden SSIDs, strlen() doesn't work, since the SSID is all NULLBYTES!
+//If you don't need that info, set ssidlen to NULL!
+char *get_ssid(struct packet *pkt, unsigned char *ssidlen);
 
 uint16_t get_capabilities(struct packet *pkt);
 
