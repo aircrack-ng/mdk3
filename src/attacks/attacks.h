@@ -4,6 +4,7 @@
 #include "beacon_flood.h"
 #include "auth_dos.h"
 #include "probing.h"
+#include "deauth.h"
 
 #include "../packet.h"
 
