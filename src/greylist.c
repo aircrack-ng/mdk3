@@ -48,12 +48,12 @@ struct greylist *search_in_greylist(struct ether_addr mac, struct greylist *glis
 void load_greylist(char isblacklist, char *filename) {
   char *entry;
   
-  if (glist) printf("Adding additional entries to greylist or changing list type!\n");
-  
   if (filename) {
     entry = read_next_line(filename, 1);
     while(entry) {
-      glist = add_to_greylist(parse_mac(entry), glist);
+      if (! search_in_greylist(parse_mac(entry), glist)) {	//Only add new entries
+	glist = add_to_greylist(parse_mac(entry), glist);
+      }
       free(entry);
       entry = read_next_line(filename, 0);
     }

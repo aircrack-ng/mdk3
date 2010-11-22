@@ -167,9 +167,6 @@ int eapol_mcast = FLAG_TKIP;                 // default multicast cipher: TKIP
 
 		"TEST MODES:\n"
 
-		"d   - Deauthentication / Disassociation aka \"Amok Mode\"\n"
-		"      Waits for data packets and disconnects their source and destination\n"
-		"      with Deauthentication and Disassociation messages.\n"
 		"m   - Michael Countermeasures Shutdown Exploit (TKIP DoS)\n"
 		"      Cancels all traffic continuously by faking a replay attack or by\n"
 		"      injecting bursts of malformed packets.\n"
@@ -189,18 +186,6 @@ int eapol_mcast = FLAG_TKIP;                 // default multicast cipher: TKIP
 		"      network to WEP or disable encryption. More effective in\n"
 		"      combination with social engineering.\n";
 
-char use_deau[]="d   - Deauthentication / Disassociation Amok Mode\n"
-		"      Kicks everybody found from AP\n"
-		"      OPTIONS:\n"
-		"      -w <filename>\n"
-		"         Read file containing MACs not to care about (Whitelist mode)\n"
-		"      -b <filename>\n"
-		"         Read file containing MACs to run test on (Blacklist Mode)\n"
-		"      -s <pps>\n"
-		"         Set speed in packets per second (Default: unlimited)\n"
-		"      -c [chan,chan,chan,...]\n"
-		"         Enable channel hopping. Without providing any channels, mdk3 will hop an all\n"
-		"         14 b/g channels. Channel will be changed every 5 seconds.\n";
 
 char use_mich[]="m   - Michael shutdown exploitation (TKIP)\n"
 		"      Cancels all traffic continuously\n"
@@ -275,24 +260,6 @@ char use_wpad[]="g   - WPA Downgrade test\n"
 
 /* Sniffing Functions */
 
-
-//deauth attack
-unsigned char *get_target_deauth()
-{
-// Sniffing for data frames to find targets
-
-    int len = 0;
-
-    pktsux:
-    len = 0;
-    while (len < 22) len = osdep_read_packet(pkt_sniff, MAX_PACKET_LENGTH);
-    if (! memcmp(pkt_sniff, "\x08", 1))
-	return pkt_sniff;
-    if (! memcmp(pkt_sniff, "\x88", 1))
-	return pkt_sniff;
-    goto pktsux;
-
-}
 
 
 //ATTACK WIDS

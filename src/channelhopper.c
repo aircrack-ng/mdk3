@@ -11,11 +11,12 @@ int chans [MAX_CHAN_COUNT] = { 1, 7, 13, 2, 8, 3, 14, 9, 4, 10, 5, 11, 6, 12, 0 
 
 pthread_t *hopper = NULL;
 
-void channel_hopper(void *usecs)
+int hopper_useconds = 0;
+
+void channel_hopper()
 {
     // A simple thread to hop channels
     int cclp = 0;
-    int hopper_useconds = *((int *) usecs);
     
     while (1) {
 	osdep_set_channel(chans[cclp]);
@@ -54,6 +55,7 @@ void init_channel_hopper(char *chanlist, int useconds)
 	chans[lpos] = 0;
     }
 
+    hopper_useconds = useconds;
     hopper = malloc(sizeof(pthread_t));
-    pthread_create(hopper, NULL, (void *) channel_hopper, (void *) &useconds);
+    pthread_create(hopper, NULL, (void *) channel_hopper, NULL);
 }
