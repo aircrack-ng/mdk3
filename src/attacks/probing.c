@@ -19,7 +19,6 @@ struct probing_options {
   unsigned int speed;
   char *charsets;
   char *proceed;
-  unsigned char renderman;
 };
 
 //Global things, shared by packet creation and stats printing
@@ -55,10 +54,7 @@ void probing_longhelp()
 	  "         * l (Lowercase: a-z)\n"
 	  "         * s (Symbols: ASCII)\n"
 	  "      -p <word>\n"
-	  "         Continue bruteforcing, starting at <word>.\n"
-	  "      -r\n"
-	  "         Activates RenderMan's discovery tool to politely scan hidden\n"
-	  "         networks for a list of known SSIDs\n");
+	  "         Continue bruteforcing, starting at <word>.\n");
 }
 
 
@@ -72,19 +68,18 @@ void *probing_parse(int argc, char *argv[]) {
   popt->speed = 400;
   popt->charsets = NULL;
   popt->proceed = NULL;
-  popt->renderman = 0;
   
   while ((opt = getopt(argc, argv, "e:f:t:s:b:p:r")) != -1) {
     switch (opt) {
       case 'e':
-	if (popt->renderman || popt->filename || popt->charsets || popt->proceed) { 
-	  printf("Select only one mode please (either -e, -f, -b or -r), not two of them!\n"); return NULL; }
+	if (popt->filename || popt->charsets || popt->proceed) { 
+	  printf("Select only one mode please (either -e, -f or -b), not two of them!\n"); return NULL; }
 	popt->ssid = malloc(strlen(optarg) + 1);
 	strcpy(popt->ssid, optarg);
       break;
       case 'f':
-	if (popt->renderman || popt->ssid || popt->charsets || popt->proceed) { 
-	  printf("Select only one mode please (either -e, -f, -b or -r), not two of them!\n"); return NULL; }
+	if (popt->ssid || popt->charsets || popt->proceed) { 
+	  printf("Select only one mode please (either -e, -f or -b), not two of them!\n"); return NULL; }
 	popt->filename = malloc(strlen(optarg) + 1);
 	strcpy(popt->filename, optarg);
       break;
@@ -92,27 +87,22 @@ void *probing_parse(int argc, char *argv[]) {
 	popt->speed = (unsigned int) atoi(optarg);
       break;
       case 't':
-	if (popt->renderman || popt->ssid) { 
+	if (popt->ssid) { 
 	  printf("Targets (-t) are not needed for this Probing mode\n"); return NULL; }
 	popt->target = malloc(sizeof(struct ether_addr));
 	*(popt->target) = parse_mac(optarg);
       break;
       case 'b':
-	if (popt->renderman || popt->filename || popt->ssid) { 
-	  printf("Select only one mode please (either -e, -f, -b or -r), not two of them!\n"); return NULL; }
+	if (popt->filename || popt->ssid) { 
+	  printf("Select only one mode please (either -e, -f or -b), not two of them!\n"); return NULL; }
 	popt->charsets = malloc(strlen(optarg) + 1);
 	strcpy(popt->charsets, optarg);
       break;
       case 'p':
-	if (popt->renderman || popt->ssid || popt->filename) { 
-	  printf("Select only one mode please (either -e, -f, -b or -r), not two of them!\n"); return NULL; }
+	if (popt->ssid || popt->filename) { 
+	  printf("Select only one mode please (either -e, -f or -b), not two of them!\n"); return NULL; }
 	popt->proceed = malloc(strlen(optarg) + 1);
 	strcpy(popt->proceed, optarg);
-      break;
-      case 'r':
-	if (popt->filename || popt->ssid || popt->charsets || popt->proceed) { 
-	  printf("Select only one mode please (either -e, -f, -b or -r), not two of them!\n"); return NULL; }
-	popt->renderman = 1;
       break;
       default:
 	probing_longhelp();
@@ -135,7 +125,7 @@ void *probing_parse(int argc, char *argv[]) {
     return NULL;
   }
   
-  if (!popt->filename && !popt->ssid && !popt->charsets && !popt->renderman) {
+  if (!popt->filename && !popt->ssid && !popt->charsets) {
     probing_longhelp();
     printf("\nOptions are completely missing.\n");
     return NULL;
