@@ -393,19 +393,153 @@ packets so we know when it accepted one, if we intercept the forwarded
 one!)<br>
   </li>
 </ul>
+In this example, the intelligent attack has been started about 10
+minutes after the standard one. As you can see, the AP is STILL denying
+any new client! So be careful when you test a network that cannot
+afford some downtime!<br>
 <br>
 <br>
 <br>
+<span style="font-weight: bold; text-decoration: underline;">p &nbsp;
+- Probing<br>
 <br>
-p&nbsp;&nbsp; - Basic probing and ESSID Bruteforce mode<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Probes AP and check for answer, useful
-for checking if SSID has<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; been correctly decloaked or if AP is in
-your adaptors sending range<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; SSID Bruteforcing is also possible with
-this test mode.<br>
+</span>The IEEE standard defines Probe packets. Those packets allow a
+station to send a request for a certain network into the air, with all
+matching APs responding to it. With those packets you can check, if an
+AP is in your range (ie. if you can reach it and it reaches you). Most
+APs have a feature called "hidden SSID". With a hidden SSID, a network
+cannot be "found" with Windows, and will be displayed on other Systems
+as "Hidden". The beacon frames emitted by those APs do NOT contain the
+networks name. Instead they either contain ZEROS for each character in
+the SSID, or only a single Zero. In order to connect to such a hidden
+network, an attacker must find out the networks real name. As far as
+the network's name is being transmitted in plaintext upon Association
+to the AP, an attacker could simply wait until some client connects to
+the AP or disconnect an already connected one with aireplay-ng or any
+other Deauthentication tool (mdk3 can do it too, Mode d), and wait for
+it to reconnect (which it usually does instantly). However, if there is
+NO CLIENT connected, the SSID stays hidden. With mdk3 however, you are
+able to try SSIDs from a Wordlist or via Bruteforce. It sends Probe
+Frames and waits for responses. If you hit the right SSID, the AP will
+respond to you, and it's name isn't hidden anymore. If you are lucky,
+the AP keeps the original length of the real SSID in its beacon frames.
+mdk3 will detect that and will only try SSIDs that match.<br>
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -e &lt;ssid&gt;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; SSID to probe for - If
+you know the target SSID already and/or just want to check if an AP is
+in your range.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -f &lt;filename&gt;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Read SSIDs from file
+for bruteforcing hidden SSIDs<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -t &lt;bssid&gt;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Set MAC address of
+target AP<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; With a target set,
+mdk3 will only print responses from this network, and stops when the
+Wordlist ends.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -s &lt;pps&gt;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Set speed (Default:
+400)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -b &lt;character sets&gt;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Use full Bruteforce
+mode (recommended for short SSIDs only!)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; You can select
+multiple character sets at once:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; * n
+(Numbers:&nbsp;&nbsp; 0-9)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; * u (Uppercase: A-Z)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; * l (Lowercase: a-z)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; * s (Symbols: ASCII)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -p &lt;word&gt;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Continue bruteforcing,
+starting at &lt;word&gt;.<br>
+<br>
 <br>
 EXAMPLES:<br>
+<br>
+Let's assume you got a pretty important network, that is well secured.
+Lets say this network is only used a few hours each month, so an
+attacker may not be lucky to catch a client authenticating to it. You
+decide to add some extra security to that network by disabling the SSID
+broadcasting. That way an attacker may not be able to connect to it,
+since he doesn't know its SSID, and thus may not be able to run
+Authentication Denial-of-Service attacks. You select a pretty short
+SSID, but you add a special character to it, hoping that it cannot be
+guessed: <span style="font-weight: bold;">aa1*<br>
+</span>Let's test if this SSID can be decloaked by a Wordlist attack:<br>
+<br>
+<span style="font-style: italic;">mdk3 </span>[your_interface]<span
+ style="font-style: italic;"> p -f useful_files/common-ssids.txt -t
+00:00:11:22:33:44<br>
+</span><span style="font-family: monospace;">Waiting for a beacon frame
+from target to get its SSID length.<br>
+SSID length is 4<br>
+Trying SSID:
+3Com&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+<br>
+Trying SSID:
+AZRF&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+<br>
+Trying SSID:
+WiFi&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+<br>
+Trying SSID:
+mine&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+<br>
+Packets sent:&nbsp;&nbsp;&nbsp;&nbsp; 44 - Speed:&nbsp;&nbsp; 20
+packets/sec<br>
+Wordlist completed.<br>
+</span><br>
+Sadly, your AP does only overwrite the SSID itself with ZEROS, not its
+length tag, so mdk3 knows, your SSID is only 4 characters long.
+Therefor, it tries only those words in the specified file, that a 4
+characters long. Luckily, aa1* is not being found in the list, and mdk3
+cannot find the hidden SSID. The attacker may now try to use
+Bruteforcing, since the SSID is very short. Let's say he already tried
+several character sets, and wants to finally try all possible
+characters:<br>
+<br>
+<span style="font-style: italic;">mdk3 </span>[your_interface]<span
+ style="font-style: italic;"> p -t 00:00:11:22:33:44 -b lnus<br>
+</span><span style="font-family: monospace;">Waiting for a beacon frame
+from target to get its SSID length.<br>
+SSID length is 4<br>
+Trying SSID:
+aaaa&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+<br>
+Trying SSID:
+aac&amp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+<br>
+Trying SSID:
+aag-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+<br>
+Trying SSID:
+aak&lt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+<br>
+Trying SSID:
+aao@&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+<br>
+Trying SSID:
+aas^&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+<br>
+Trying SSID:
+aaw{&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+<br>
+Trying SSID:
+aa0{&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+<br>
+Probe Response from target AP with SSID
+aa1*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+<br>
+Job's done, have a nice day :)</span><br>
+<span style="font-style: italic;"><span style="font-family: monospace;"></span></span><span
+ style="font-weight: bold;"><span style="font-weight: bold;"></span></span><br>
+This time, mdk3 is successful.-b lnus means, start with lowercase, then
+numbers, then Uppercase and finally symbols. After about 2500 tries,
+the SSID has been found, and therefor does not add much extra security
+to your network. Consider using a longer one!<br>
+<br>
 <br>
 d&nbsp;&nbsp; - Deauthentication / Disassociation Amok Mode<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Kicks everybody found from AP<br>
