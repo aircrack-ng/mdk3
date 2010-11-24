@@ -456,7 +456,7 @@ multiple character sets at once:<br>
 starting at &lt;word&gt;.<br>
 <br>
 <br>
-EXAMPLES:<br>
+<span style="font-weight: bold;">EXAMPLES:</span><br>
 <br>
 Let's assume you got a pretty important network, that is well secured.
 Lets say this network is only used a few hours each month, so an
@@ -541,10 +541,96 @@ the SSID has been found, and therefor does not add much extra security
 to your network. Consider using a longer one!<br>
 <br>
 <br>
-d&nbsp;&nbsp; - Deauthentication / Disassociation Amok Mode<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Kicks everybody found from AP<br>
 <br>
-EXAMPLES:<br>
+<span style="text-decoration: underline; font-weight: bold;">d&nbsp;&nbsp;
+- Deauthentication ans Disassociation</span><br>
+<br>
+If a station wants to leave a network, it sends a Deauthentication
+packet to the AP to deregister itself from it. Additionally, the AP is
+allowed to disconnect stations when it thinks it is necessary (for
+example, the AP is full, and the oldest stations gets kicked from it to
+allow new clients to connect). As far as those packets are not
+encrypted our signed (if you are not using the new amendment <a
+ href="http://en.wikipedia.org/wiki/IEEE_802.11w-2009">IEEE_802.11w</a>),
+an attacker can easily forge them to disconnect legitimate clients from
+your AP. mdk3 is capable of creating different types of those packets,
+with different options:<br>
+<ul>
+  <li><span style="font-weight: bold;">Deauthentication from AP to
+client:</span> mdk3 injects a deauthentication packet with the MAC
+Adress of the AP to the Station, telling the station is has been
+disconnected for unspecified reasons.</li>
+  <li><span style="font-weight: bold;">Deauthentication from client to
+AP:</span> mdk3 injects a deauthentication packet from the Station to
+the AP, telling the AP, the station is leaving the network.</li>
+  <li><span style="font-weight: bold;">Disassociation from AP to client:</span>
+mdk3 tells the client, it has been kicked because the AP is full.<br>
+  </li>
+  <li><span style="font-weight: bold;">Disassociation from client to AP:</span>
+mdk3 tells the AP, the client is leaving the network.</li>
+</ul>
+mdk3 listens on the current channel for Data packets, extracts the
+adresses of AP and Station from them, and sends one packet of each
+type. Every second, a status message is displayed, if something has
+happened.<br>
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -w &lt;filename&gt;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Read file containing
+MACs not to care about (Whitelist mode)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Put the MAC adresses
+of stations and APs, who shall NOT be attacked in this file, mdk3 will
+skip them<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -b &lt;filename&gt;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Read file containing
+MACs to run test on (Blacklist Mode)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Put MAC adresses of
+stations and APs in this file, who SHALL BE attacked.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -s &lt;pps&gt;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Set speed in packets
+per second (Default: unlimited)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -c [chan,chan,chan,...]<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Enable channel
+hopping. Without providing any channels, mdk3 will hop an all<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 14 b/g channels.
+Channel will be changed every 3 seconds.<br>
+<br>
+<span style="font-weight: bold;">EXAMPLE:</span><br>
+<br>
+<span style="font-style: italic;">mdk3 </span>[your_interface]<span
+ style="font-style: italic;"> d -c 1,6,11<br>
+<br>
+</span><span style="font-family: monospace;">Disconnecting
+00:04:0E:91:5C:56 from 00:1D:E5:7A:18:B9 on channel 1</span><br
+ style="font-family: monospace;">
+<span style="font-family: monospace;">Disconnecting 00:04:0E:91:5C:56
+from 00:1D:E5:7A:18:B9 on channel 1</span><br
+ style="font-family: monospace;">
+<span style="font-family: monospace;">Disconnecting 00:04:0E:91:5C:56
+from 00:1D:E5:7A:18:B9 on channel 1</span><br
+ style="font-family: monospace;">
+<span style="font-family: monospace;">Disconnecting 00:04:0E:91:5A:77
+from 00:1D:E5:7A:15:CE on channel 6</span><br
+ style="font-family: monospace;">
+<span style="font-family: monospace;">Disconnecting 00:04:0E:91:5A:77
+from 00:1D:E5:7A:15:CE on channel 6</span><br
+ style="font-family: monospace;">
+<span style="font-family: monospace;">Disconnecting 00:23:08:DD:4A:FE
+from 00:1D:E5:7A:43:00 on channel 11</span><br
+ style="font-family: monospace;">
+<span style="font-family: monospace;">Disconnecting 00:04:0E:91:5C:56
+from 00:1D:E5:7A:18:B9 on channel 1</span><br
+ style="font-family: monospace;">
+<span style="font-family: monospace;">Packets sent:&nbsp;&nbsp;&nbsp;
+117 - Speed:&nbsp;&nbsp; 16 packets/sec</span><span
+ style="font-style: italic;"><br>
+</span><br>
+mdk3 hops on channel 1, 6 and 11, and disconnects every station found
+there. Most stations try to reconnect, however, almost no communication
+is possible anymore, because they mostly get disconnected again, as
+soon as they re-request their IP-Adresses with DHCP and ARP, which
+triggers another Deauthentication cycle in mdk3. Use 802.11w if
+available or some IDS to at least detect such attacks on your network.<br>
+<br>
 <br>
 m&nbsp;&nbsp; - Michael shutdown exploitation (TKIP)<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Cancels all traffic continuously<br>
