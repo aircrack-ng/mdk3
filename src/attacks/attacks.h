@@ -5,6 +5,7 @@
 #include "auth_dos.h"
 #include "probing.h"
 #include "deauth.h"
+#include "countermeasures.h"
 
 #include "../packet.h"
 

