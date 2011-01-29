@@ -38,21 +38,7 @@
 #include "helpers.h"
 #include "mac_addr.h"
 
-#define ARPHRD_IEEE80211        801
-#define ARPHRD_IEEE80211_PRISM  802
-#define ARPHRD_IEEE80211_FULL   803
 
-#ifndef ETH_P_80211_RAW
-#define ETH_P_80211_RAW 25
-#endif
-
-#define VERSION "v7"
-
-#define MICHAEL \
-    "\x08\x41\x3A\x01\xBB\xBB\xBB\xBB\xBB\xBB\xCC\xCC\xCC\xCC\xCC\xCC"  \
-    "\xBB\xBB\xBB\xBB\xBB\xBB\xE0\x1B\x00\x00\x00\x20\x00\x00\x00\x00"
-
-#define	MAX_PACKET_LENGTH 4096
 #define	MAX_APS_TRACKED 100
 #define MAX_APS_TESTED 100
 
@@ -60,8 +46,6 @@
         (ts)->tv_sec = (tv)->tv_sec;                                    \
         (ts)->tv_nsec = (tv)->tv_usec * 1000;                           \
 }
-
-#define LIST_REREAD_PERIOD 3
 
 struct wids_stats
 {
@@ -79,11 +63,6 @@ unsigned char aps_known[MAX_APS_TRACKED][ETHER_ADDR_LEN];          // Array to s
 int aps_known_count = 0;                     // Number of known APs
 unsigned char auth[MAX_APS_TESTED][ETHER_ADDR_LEN];      // Array to save MACs of APs currently under test
 int auths[MAX_APS_TESTED][4];                // Array to save status of APs under test
-int auth_count;                              // Number of APs under test
-int showssidwarn1=1, showssidwarn2=1;        // Show warnings for overlenght SSIDs
-unsigned char *mac_sa = NULL;                        // Deauth test: Sender/Client MAC
-unsigned char *mac_ta = NULL;                        //              Transmitter/BSSID MAC
-int state = 0, wds = 0;                      // Current state of deauth algo
 unsigned char *pkt_amok = NULL;                      // Pointer to packet for deauth mode
 unsigned char *target = NULL;                        // Target for SSID Bruteforce / Intelligent Auth DoS
 int exit_now = 0;                            // Tells main thread to exit

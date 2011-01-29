@@ -143,7 +143,7 @@ struct packet countermeasures_getpacket(void *options) {
 
       printf("\rQoS Packet from "); print_mac(*(get_source(&sniffed)));
       printf(" to AP "); print_mac(*(get_bssid(&sniffed)));
-      printf(" with priority %d captured.\n", sniffed.data[QOS_PACKET_PRIO_POS] & 0x07);
+      printf(" with priority %d captured and reinjected.\n", sniffed.data[QOS_PACKET_PRIO_POS] & 0x07);
 
       sniffed.data[QOS_PACKET_PRIO_POS] &= 0xF8;  //Reset QoS queue to 0
 
