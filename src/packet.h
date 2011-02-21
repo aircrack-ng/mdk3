@@ -35,6 +35,12 @@
 
 #define BEACON_TAGTYPE_SSID	0x00
 
+#define LLC_SNAP		0xAA
+#define LLC_UNNUMBERED		0x03
+
+#define RSN_TYPE_KEY		0x03
+#define RSN_DESCRIPTOR_KEY	0x02
+
 struct packet {
   unsigned char *data;
   unsigned int len;
@@ -65,6 +71,30 @@ struct auth_fixed {
 struct assoc_fixed {
   uint16_t capabilities;
   uint16_t interval;
+} __attribute__((packed));
+
+struct llc_header {
+  uint8_t dsap;
+  uint8_t ssap;
+  uint8_t control;
+  uint8_t encap[3];
+  uint16_t type;
+} __attribute__((packed));
+
+struct rsn_auth {
+  uint8_t version;
+  uint8_t type;
+  uint16_t length;
+  uint8_t descriptor;
+  uint16_t key_info;
+  uint16_t key_length;
+  uint64_t replay_counter;
+  uint8_t nonce[32];
+  uint8_t key_iv[16];
+  uint64_t key_rsc;
+  uint64_t key_id;
+  uint8_t key_mic[16];
+  uint16_t wpa_length;
 } __attribute__((packed));
 
 //dsflags: 'a' = AdHoc, Beacon   'f' = From DS   't' = To DS   'w' = WDS (intra DS)
@@ -102,5 +132,11 @@ struct packet create_assoc_req(struct ether_addr client, struct ether_addr bssid
 char *get_ssid(struct packet *pkt, unsigned char *ssidlen);
 
 uint16_t get_capabilities(struct packet *pkt);
+
+//Adds LLC header to a packet created with create_ieee_hdr(). You can use this to build unencrypted data frames or EAP packets.
+void add_llc_header(struct packet *pkt, uint16_t llc_type);
+
+//Adds EAP/WPA packet behind the LLC Header to create WPA Login packets
+void add_eapol(struct packet *pkt, uint16_t wpa_length, uint8_t *wpa_element, uint8_t wpa_1or2);
 
 #endif

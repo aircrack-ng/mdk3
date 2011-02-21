@@ -323,3 +323,47 @@ uint16_t get_capabilities(struct packet *pkt) {
 
   return le16toh(bf->capabilities);
 }
+
+void add_llc_header(struct packet *pkt, uint16_t llc_type) {
+  struct llc_header *llc;
+  
+  pkt->data = realloc(pkt->data, pkt->len + 8);
+  
+  llc = (struct llc_header *) (pkt->data + sizeof(struct ieee_hdr));
+  llc->dsap = LLC_SNAP; llc->ssap = LLC_SNAP;
+  llc->control = LLC_UNNUMBERED;
+  llc->encap[0] = 0x00; llc->encap[1] = 0x00; llc->encap[2] = 0x00;
+  llc->type = htobe16(llc_type);
+
+  pkt->len += 8;
+}
+
+void add_eapol(struct packet *pkt, uint16_t wpa_length, uint8_t *wpa_element, uint8_t wpa_1or2) {
+  struct rsn_auth *rsn;
+  static uint64_t replay_ctr = 0;
+  uint32_t t;
+
+  replay_ctr++; replay_ctr %= 32;
+  
+  pkt->data = realloc(pkt->data, pkt->len + sizeof(struct rsn_auth) + wpa_length);
+
+  rsn = (struct rsn_auth *) (pkt->data + sizeof(struct ieee_hdr) + sizeof(struct llc_header));
+  rsn->version = 2;
+  rsn->type = RSN_TYPE_KEY;
+  rsn->length = htobe16(sizeof(struct rsn_auth) + wpa_length - 4);
+  rsn->descriptor = RSN_DESCRIPTOR_KEY;
+  rsn->key_info = htobe16(0x0108);	// Key MIC flag + Pairwise flag
+  if (wpa_1or2 == 1) rsn->key_info |= htobe16(0x0001);
+  if (wpa_1or2 == 2) rsn->key_info |= htobe16(0x0002);
+  rsn->key_length = htobe16(0);
+  rsn->replay_counter = htobe64(replay_ctr);
+  for (t=0; t<32; t++) rsn->nonce[t] = random();
+  memset(rsn->key_iv, 0x00, 16);
+  rsn->key_rsc = htobe64(0);
+  rsn->key_id = htobe64(0);
+  for (t=0; t<16; t++) rsn->key_mic[t] = random();
+  rsn->wpa_length = htobe16(wpa_length);
+  memcpy(pkt->data + sizeof(struct ieee_hdr) + sizeof(struct llc_header) + sizeof(struct rsn_auth), wpa_element, wpa_length);
+
+  pkt->len += sizeof(struct rsn_auth) + wpa_length;
+}

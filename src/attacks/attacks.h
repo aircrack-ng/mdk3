@@ -6,6 +6,7 @@
 #include "probing.h"
 #include "deauth.h"
 #include "countermeasures.h"
+#include "eapol.h"
 
 #include "../packet.h"
 
