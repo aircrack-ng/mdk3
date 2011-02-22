@@ -146,9 +146,11 @@ void decode_beacon(struct packet *beacon) {
 
   while (tags < (beacon->data + beacon->len)) {
     if (tags[0] == BEACON_TAG_WPA1) {
-      decode_tag_wpa(tags);
-      target_wpa1 = malloc(2 + tags[1]);
-      memcpy(target_wpa1, tags, 2 + tags[1]);
+      if (tags[5] == 0x01) {	//type 2 is WME, so skip those
+	decode_tag_wpa(tags);
+	target_wpa1 = malloc(2 + tags[1]);
+	memcpy(target_wpa1, tags, 2 + tags[1]);
+      }
     }
     if (tags[0] == BEACON_TAG_RSN) {
       decode_tag_wpa(tags);
