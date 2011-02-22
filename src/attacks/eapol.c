@@ -17,6 +17,7 @@
 
 #define BEACON_TAG_WPA1 0xDD
 #define BEACON_TAG_RSN  0x30
+#define BEACON_TAG_MSFT 0x0050F201
 
 #define LLC_TYPE_EAPOL  0x888E
 
@@ -105,9 +106,11 @@ char *decode_cipher(char cipher) {
 
 char *decode_keymgmt(char kmgmt) {
   static char *psk = "PSK";
+  static char *wpa = "WPA";
   static char *unknown = "???";
 
   if (kmgmt == 0x02) return psk;
+  if (kmgmt == 0x01) return wpa;
   return unknown;
 }
 
@@ -146,7 +149,7 @@ void decode_beacon(struct packet *beacon) {
 
   while (tags < (beacon->data + beacon->len)) {
     if (tags[0] == BEACON_TAG_WPA1) {
-      if (tags[5] == 0x01) {	//type 2 is WME, so skip those
+      if (*((uint32_t *)(tags + 2)) == htobe32(BEACON_TAG_MSFT)) {
 	decode_tag_wpa(tags);
 	target_wpa1 = malloc(2 + tags[1]);
 	memcpy(target_wpa1, tags, 2 + tags[1]);
