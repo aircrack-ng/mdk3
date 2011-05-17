@@ -245,6 +245,7 @@ void auth_dos_intelligent_sniffer(void *target) {
 	  break;
 
 	case IEEE80211_TYPE_DATA:
+	case IEEE80211_TYPE_QOSDATA:
 	  src = get_source(&pkt);
 
 	  // Check if packet got relayed (source adress == fake mac)
