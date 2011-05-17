@@ -13,6 +13,13 @@
 #define MAC_MATCHES(x,y) (! memcmp((x).ether_addr_octet, (y).ether_addr_octet, ETHER_ADDR_LEN))
 #define MAC_COPY(x,y) (memcpy((x).ether_addr_octet, (y).ether_addr_octet, ETHER_ADDR_LEN))
 
+#ifdef __GNUC__
+#define VARIABLE_IS_NOT_USED __attribute__ ((unused))
+#else
+#define VARIABLE_IS_NOT_USED
+#endif
+
+static VARIABLE_IS_NOT_USED struct ether_addr SE_NULLMAC = { .ether_addr_octet = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 } };
 
 enum mac_kind {
   MAC_KIND_RANDOM,

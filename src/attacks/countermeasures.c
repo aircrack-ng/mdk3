@@ -160,7 +160,7 @@ struct packet countermeasures_getpacket(void *options) {
     src = generate_mac(MAC_KIND_CLIENT);
 
     pkt.data = malloc(64);
-    create_ieee_hdr(&pkt, IEEE80211_TYPE_DATA, 't', AUTH_DEFAULT_DURATION, *(copt->target), src, *(copt->target), NULLMAC, 0);
+    create_ieee_hdr(&pkt, IEEE80211_TYPE_DATA, 't', AUTH_DEFAULT_DURATION, *(copt->target), src, *(copt->target), SE_NULLMAC, 0);
     pkt.len = 64;
 
     hdr = (struct ieee_hdr *) pkt.data;

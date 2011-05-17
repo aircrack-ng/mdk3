@@ -176,7 +176,7 @@ struct packet build_eapol(struct ether_addr *target, struct ether_addr *client) 
   pkt.len = sizeof(struct ieee_hdr);
   pkt.data = malloc(pkt.len);
 
-  create_ieee_hdr(&pkt, IEEE80211_TYPE_DATA, 't', AUTH_DEFAULT_DURATION, *target, *client, *target, NULLMAC, 0);
+  create_ieee_hdr(&pkt, IEEE80211_TYPE_DATA, 't', AUTH_DEFAULT_DURATION, *target, *client, *target, SE_NULLMAC, 0);
   add_llc_header(&pkt, LLC_TYPE_EAPOL);
 
   if (! target_rsn) {
@@ -193,7 +193,7 @@ struct packet build_eapol_start_logoff(struct ether_addr *target, struct ether_a
   pkt.len = sizeof(struct ieee_hdr);
   pkt.data = malloc(pkt.len);
   
-  create_ieee_hdr(&pkt, IEEE80211_TYPE_DATA, 't', AUTH_DEFAULT_DURATION, *target, *client, *target, NULLMAC, 0);
+  create_ieee_hdr(&pkt, IEEE80211_TYPE_DATA, 't', AUTH_DEFAULT_DURATION, *target, *client, *target, SE_NULLMAC, 0);
   add_llc_header(&pkt, LLC_TYPE_EAPOL);
   
   pkt.data = realloc(pkt.data, pkt.len + 4);

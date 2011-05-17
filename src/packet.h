@@ -98,7 +98,7 @@ struct rsn_auth {
 } __attribute__((packed));
 
 //dsflags: 'a' = AdHoc, Beacon   'f' = From DS   't' = To DS   'w' = WDS (intra DS)
-//Set recv to NULLMAC if you don't create WDS packets. (its ignored anyway)
+//Set recv to SE_NULLMAC if you don't create WDS packets. (its ignored anyway)
 void create_ieee_hdr(struct packet *pkt, uint8_t type, char dsflags, uint16_t duration, struct ether_addr destination, struct ether_addr source, struct ether_addr bssid_or_transm, struct ether_addr recv, uint8_t fragment);
 
 struct ether_addr *get_bssid(struct packet *pkt);
