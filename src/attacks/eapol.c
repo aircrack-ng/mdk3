@@ -338,6 +338,9 @@ struct packet eapol_getpacket(void *options) {
       pkt = build_eapol(eopt->target, client);
       eapols++;
     break;
+    default: //Somethings wrong....
+      pkt.data = NULL;
+      pkt.len = 0;
   }
 
   return pkt;
