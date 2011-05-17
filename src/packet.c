@@ -168,7 +168,7 @@ struct packet create_beacon(struct ether_addr bssid, char *ssid, uint8_t channel
   beacon.data = malloc(2048);	//Will resize it later
   
   MAC_SET_BCAST(bc);
-  create_ieee_hdr(&beacon, IEEE80211_TYPE_BEACON, 'a', 0, bc, bssid, bssid, bc, 0);
+  create_ieee_hdr(&beacon, IEEE80211_TYPE_BEACON, 'a', 0, bc, bssid, bssid, NULLMAC, 0);
 
   bf = (struct beacon_fixed *) (beacon.data + beacon.len);
   
@@ -204,7 +204,7 @@ struct packet create_auth(struct ether_addr bssid, struct ether_addr client, uin
   
   auth.data = malloc(30);
   
-  create_ieee_hdr(&auth, IEEE80211_TYPE_AUTH, 'a', AUTH_DEFAULT_DURATION, bssid, client, bssid, bssid, 0);
+  create_ieee_hdr(&auth, IEEE80211_TYPE_AUTH, 'a', AUTH_DEFAULT_DURATION, bssid, client, bssid, NULLMAC, 0);
   
   af = (struct auth_fixed *) (auth.data + auth.len);
   
@@ -223,7 +223,7 @@ struct packet create_probe(struct ether_addr source, char *ssid, unsigned char b
   probe.data = malloc(2048);
   
   MAC_SET_BCAST(bc);
-  create_ieee_hdr(&probe, IEEE80211_TYPE_PROBEREQ, 'a', 0, bc, source, bc, bc, 0);
+  create_ieee_hdr(&probe, IEEE80211_TYPE_PROBEREQ, 'a', 0, bc, source, bc, NULLMAC, 0);
 
   add_ssid_set(&probe, ssid);
   add_rate_sets(&probe, 1, (bitrate == 54));
@@ -238,7 +238,7 @@ struct packet create_deauth(struct ether_addr destination, struct ether_addr sou
   
   deauth.data = malloc(26);
   
-  create_ieee_hdr(&deauth, IEEE80211_TYPE_DEAUTH, 'a', AUTH_DEFAULT_DURATION, destination, source, bssid, bssid, 0);
+  create_ieee_hdr(&deauth, IEEE80211_TYPE_DEAUTH, 'a', AUTH_DEFAULT_DURATION, destination, source, bssid, NULLMAC, 0);
   
   reason = (uint16_t *) (deauth.data + deauth.len);
   
@@ -258,7 +258,7 @@ struct packet create_disassoc(struct ether_addr destination, struct ether_addr s
   
   disassoc.data = malloc(26);
   
-  create_ieee_hdr(&disassoc, IEEE80211_TYPE_DISASSOC, 'a', AUTH_DEFAULT_DURATION, destination, source, bssid, bssid, 0);
+  create_ieee_hdr(&disassoc, IEEE80211_TYPE_DISASSOC, 'a', AUTH_DEFAULT_DURATION, destination, source, bssid, NULLMAC, 0);
   
   reason = (uint16_t *) (disassoc.data + disassoc.len);
   
@@ -278,7 +278,7 @@ struct packet create_assoc_req(struct ether_addr client, struct ether_addr bssid
   
   assoc.data = malloc(2048);
   
-  create_ieee_hdr(&assoc, IEEE80211_TYPE_ASSOCREQ, 'a', AUTH_DEFAULT_DURATION, bssid, client, bssid, bssid, 0);
+  create_ieee_hdr(&assoc, IEEE80211_TYPE_ASSOCREQ, 'a', AUTH_DEFAULT_DURATION, bssid, client, bssid, NULLMAC, 0);
   af = (struct assoc_fixed *) (assoc.data + assoc.len);
 
   af->capabilities = htole16(capabilities);
@@ -297,7 +297,7 @@ char *get_ssid(struct packet *pkt, unsigned char *ssidlen) {
   struct ieee_hdr *hdr = (struct ieee_hdr *) (pkt->data);
   unsigned char *tags = pkt->data + sizeof(struct ieee_hdr) + sizeof(struct beacon_fixed);
   
-  if ((hdr->type != IEEE80211_TYPE_BEACON) && (hdr->type != IEEE80211_TYPE_PROBERES))return NULL;
+  if ((hdr->type != IEEE80211_TYPE_BEACON) && (hdr->type != IEEE80211_TYPE_PROBERES)) return NULL;
   //Thats neither a beacon nor a probe response, therefor it has no SSID
  
   while (tags < (pkt->data + pkt->len)) {

