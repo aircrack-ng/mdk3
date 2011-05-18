@@ -24,4 +24,10 @@ void osdep_set_channel(int channel);
 
 int osdep_get_channel();
 
+//IDS Evasion (Ghosting)
+#ifdef __linux__
+void osdep_init_rates();
+void osdep_random_txpower();
+#endif
+
 #endif

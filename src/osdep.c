@@ -1,9 +1,25 @@
 #include <stdio.h>
 #include <errno.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "osdep/osdep.h"
 #include "osdep.h"
+
+#ifdef __linux__
+ #include <linux/wireless.h>
+ #include <sys/socket.h>
+ #include <sys/ioctl.h>
+#else
+ #warning NOT COMPILING FOR LINUX - Ghosting (IDS Evasion) will not be evailable
+#endif
+
+//Thats the max tx power we try to set, your fault if the hardware dies :P
+#define MAX_TX_POWER 50
+
+int available_txpowers[MAX_TX_POWER];
+int available_txpowers_count = 0;
+int osdep_sockfd = -1;
 
 static struct wif *_wi_in, *_wi_out;
 
@@ -15,10 +31,13 @@ struct devices
 } dev;
 
 int current_channel = 0;
-
+char *osdep_iface = NULL;
 
 int osdep_start(char *interface)
 {
+    osdep_iface = malloc(strlen(interface) + 1);
+    strcpy(osdep_iface, interface);
+    
     /* open the replay interface */
     _wi_out = wi_open(interface);
     if (!_wi_out)
@@ -104,3 +123,72 @@ void osdep_set_rate(int rate)
     
     wi_set_rate(_wi_out, rate);
 }
+
+#ifdef __linux__
+void osdep_init_rates()
+{
+    //Stupid? Just try rates to find working ones...
+    //Anybody know how to get a proper list of supported rates?
+
+    if (!osdep_iface) {
+      printf("D'oh, open interface first, idiot...\n");
+      return;
+    }
+
+    struct iwreq wreq;
+    int old_txpower, i;
+    
+    osdep_sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+    if(osdep_sockfd < 0) {
+      printf("WTF? Couldn't open socket. Something is VERY wrong...\n");
+      return;
+    }
+    
+    strncpy(wreq.ifr_name, osdep_iface, IFNAMSIZ);
+    
+    if(ioctl(osdep_sockfd, SIOCGIWTXPOW, &wreq) < 0) {
+      printf("Can't get TX power from card, sorry\n");
+      return;
+    }
+  
+    old_txpower = wreq.u.txpower.value;
+    printf("Current TX power: %i dBm\n", wreq.u.txpower.value);
+    
+    for (i=0; i<MAX_TX_POWER; i++) {
+      wreq.u.txpower.value = i;
+      if(ioctl(osdep_sockfd, SIOCSIWTXPOW, &wreq) == 0) {
+	available_txpowers[available_txpowers_count] = i;
+	available_txpowers_count++;
+      }
+    }
+    
+    //Reset to initial value
+    wreq.u.txpower.value = old_txpower;
+    ioctl(osdep_sockfd, SIOCSIWTXPOW, &wreq);
+    
+    printf("Available TX powers: ");
+    for (i=0; i<available_txpowers_count; i++) {
+      printf("%i, ", available_txpowers[i]);
+    }
+    printf("\b\b dBm\n");
+}
+
+void osdep_random_txpower() {
+    long rnd;
+    struct iwreq wreq;
+    
+    if (! available_txpowers_count) {  //This also makes sure the socket exists ;)
+      printf("Can't set random TX power since no TX power is known to me :(\n");
+      return;
+    }
+    
+    rnd = random() % available_txpowers_count;
+    strncpy(wreq.ifr_name, osdep_iface, IFNAMSIZ);
+    
+    ioctl(osdep_sockfd, SIOCGIWTXPOW, &wreq);
+    wreq.u.txpower.value = available_txpowers[rnd];
+    ioctl(osdep_sockfd, SIOCSIWTXPOW, &wreq);
+    
+    printf("Power set to %d dBm\n", available_txpowers[rnd]);
+}
+#endif

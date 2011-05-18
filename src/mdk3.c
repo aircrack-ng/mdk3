@@ -118,6 +118,11 @@ int main(int argc, char *argv[]) {
 
   srandom(time(NULL));	//Fresh numbers each run
   
+#ifdef __linux__
+  osdep_init_rates();
+  osdep_random_txpower();
+#endif
+  
   //Parsing done, start attacks
   main_loop(cur_attack, cur_options);
   
