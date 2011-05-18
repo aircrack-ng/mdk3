@@ -20,6 +20,18 @@ int ghosting_maxrate, ghosting_minpower;
  *    Also change speed every few ms, not a fantastic evasion technique but it may cause more location tracking oddity.
  */
 
+char *ghost_help ="###### This version supports IDS Evasion (Ghosting) ######\n"
+		  "# Just append  --ghost <period>,<max_rate>,<min_txpower> #\n"
+		  "# after your attack mode identifier to enable ghosting!  #\n"
+		  "# <period>      : How often (in ms) to switch rate/power #\n"
+		  "# <max_rate>    : Maximum Bitrate to use in MBit         #\n"
+		  "# <min_txpower> : Minimum TX power in dBm to use         #\n"
+		  "##########################################################\n";
+
+void ghosting_print_help() {
+  printf(ghost_help);
+}
+
 void txpower_ghosting_thread() {
   while(1) {
     osdep_random_txpower(ghosting_minpower);
@@ -82,4 +94,17 @@ void start_ghosting(unsigned int period, int max_bitrate, int min_tx_power) {
   printf("every %d milliseconds\n", period);
 }
 
+void parse_ghosting(const char *input) {
+  int parseok;
+  int per, rate, pow;
+  
+  parseok = sscanf(input, "%d,%d,%d", &per, &rate, &pow);
+  
+  if (parseok != 3) {
+    printf("Your ghosting parameters are unparseable...\n");
+    exit(-1);
+  }
+  
+  start_ghosting(per, rate, pow);
+}
 #endif

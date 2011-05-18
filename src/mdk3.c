@@ -26,11 +26,18 @@ char *mdk3_help = "MDK 3.0 " VERSION " - \"" VERSION_COOL "\"\n"
 		  "mdk3 <interface> <attack_mode> [attack_options]\n\n"
 		  "Try mdk3 --fullhelp for all attack options\n"
 		  "Try mdk3 --help <attack_mode> for info about one attack only\n\n";
+		  
 
 void print_help_and_die(struct attacks *att, int att_cnt, char full, char *add_msg) {
   int i;
   
   printf("%s\n", mdk3_help);
+  
+#ifdef __linux__
+  ghosting_print_help();
+  printf("\n");
+#endif
+  
   printf("Loaded %d attack modules\n\n", att_cnt);
 
   for(i=0; i<att_cnt; i++) {
@@ -113,17 +120,21 @@ int main(int argc, char *argv[]) {
   
   /* drop privileges */
   setuid(getuid());
-
-  cur_options = cur_attack->parse_options(argc - 2, argv + 2);
+  
+  if ((argc > 3) && (! strcmp(argv[3], "--ghost"))) {
+#ifdef __linux__
+    parse_ghosting(argv[4]);
+    cur_options = cur_attack->parse_options(argc - 4, argv + 4);
+#else
+    printf("Sorry, IDS Evasion aka Ghosting is only available on Linux.\n");
+#endif
+  } else {
+    cur_options = cur_attack->parse_options(argc - 2, argv + 2);
+  }
+  
   if (!cur_options) return 1;
 
   srandom(time(NULL));	//Fresh numbers each run
-  
-#ifdef __linux__
-  start_ghosting(100, 11, 10);
-#else
-  printf("Sorry, IDS Evasion aka Ghosting is only available on Linux.\n");
-#endif
   
   //Parsing done, start attacks
   main_loop(cur_attack, cur_options);
