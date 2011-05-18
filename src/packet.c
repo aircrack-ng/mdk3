@@ -367,3 +367,14 @@ void add_eapol(struct packet *pkt, uint16_t wpa_length, uint8_t *wpa_element, ui
 
   pkt->len += sizeof(struct rsn_auth) + wpa_length;
 }
+
+void increase_seqno(struct packet *pkt) {
+  uint16_t frgseq;
+  struct ieee_hdr *hdr = (struct ieee_hdr *) (pkt->data);
+  
+  frgseq = letoh16(hdr->frag_seq);
+  
+  frgseq += 0x10;	//Lower 4 bytes are fragment number
+  
+  hdr->frag_seq = htole16(frgseq);
+}

