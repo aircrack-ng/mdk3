@@ -9,7 +9,7 @@ LIBS		= -L$(OSD) -l$(OSD)
 LIBOSD		= $(OSD)/lib$(OSD).so
 
 OBJS		= debug.o helpers.o mac_addr.o linkedlist.o greylist.o dumpfile.o packet.o brute.o
-OBJS_OSD	= osdep.o channelhopper.o
+OBJS_OSD	= osdep.o channelhopper.o ghosting.o
 
 ATTACKS		= attacks
 OBJ_ATT		= $(shell ls attacks/*.h | sed s/"\.h"/"\.o"/g)

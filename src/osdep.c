@@ -11,7 +11,7 @@
  #include <sys/socket.h>
  #include <sys/ioctl.h>
 #else
- #warning NOT COMPILING FOR LINUX - Ghosting (IDS Evasion) will not be evailable
+ #warning NOT COMPILING FOR LINUX - Ghosting (IDS Evasion) will not be available
 #endif
 
 //Thats the max tx power we try to set, your fault if the hardware dies :P
@@ -125,7 +125,7 @@ void osdep_set_rate(int rate)
 }
 
 #ifdef __linux__
-void osdep_init_rates()
+void osdep_init_txpowers()
 {
     //Stupid? Just try rates to find working ones...
     //Anybody know how to get a proper list of supported rates?
@@ -173,7 +173,7 @@ void osdep_init_rates()
     printf("\b\b dBm\n");
 }
 
-void osdep_random_txpower() {
+void osdep_random_txpower(int min) {
     long rnd;
     struct iwreq wreq;
     
@@ -182,13 +182,29 @@ void osdep_random_txpower() {
       return;
     }
     
-    rnd = random() % available_txpowers_count;
+    do {
+      rnd = random() % available_txpowers_count;
+    } while(available_txpowers[rnd] < min);
+        
     strncpy(wreq.ifr_name, osdep_iface, IFNAMSIZ);
     
     ioctl(osdep_sockfd, SIOCGIWTXPOW, &wreq);
     wreq.u.txpower.value = available_txpowers[rnd];
     ioctl(osdep_sockfd, SIOCSIWTXPOW, &wreq);
+}
+
+int osdep_get_max_txpower() {
+    int max = 0, i;
     
-    printf("Power set to %d dBm\n", available_txpowers[rnd]);
+    if (! available_txpowers_count) {
+      printf("You forget to osdep_init_txpowers()!\n");
+      return 0;
+    }
+  
+    for (i=0; i<available_txpowers_count; i++) {
+      if (available_txpowers[i] > max) max = available_txpowers[i];
+    }
+    
+    return max;
 }
 #endif

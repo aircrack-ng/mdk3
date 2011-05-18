@@ -6,6 +6,7 @@
 
 #include "attacks/attacks.h"
 #include "osdep.h"
+#include "ghosting.h"
 
 #define VERSION "v7"
 #define VERSION_COOL "OMG! He cleaned his code!"
@@ -119,8 +120,9 @@ int main(int argc, char *argv[]) {
   srandom(time(NULL));	//Fresh numbers each run
   
 #ifdef __linux__
-  osdep_init_rates();
-  osdep_random_txpower();
+  start_ghosting(100, 11, 10);
+#else
+  printf("Sorry, IDS Evasion aka Ghosting is only available on Linux.\n");
 #endif
   
   //Parsing done, start attacks
