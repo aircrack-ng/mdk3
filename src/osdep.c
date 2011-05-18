@@ -5,7 +5,6 @@
 #include "osdep/osdep.h"
 #include "osdep.h"
 
-
 static struct wif *_wi_in, *_wi_out;
 
 struct devices
@@ -90,4 +89,18 @@ void osdep_set_channel(int channel)
 int osdep_get_channel()
 {
     return current_channel;
+}
+
+
+void osdep_set_rate(int rate)
+{
+    int i, valid = 0;
+    
+    for (i=0; i<VALID_RATE_COUNT; i++) {
+      if (VALID_BITRATES[i] == rate) valid = 1;
+    }
+    
+    if (!valid) printf("BUG: osdep_set_rate(): Invalid bitrate selected!\n");
+    
+    wi_set_rate(_wi_out, rate);
 }
