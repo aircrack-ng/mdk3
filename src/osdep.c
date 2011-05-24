@@ -145,9 +145,10 @@ void osdep_init_txpowers()
     }
     
     strncpy(wreq.ifr_name, osdep_iface, IFNAMSIZ);
+    wreq.u.power.flags = 0;  //Took some time to figure that out....
     
     if(ioctl(osdep_sockfd, SIOCGIWTXPOW, &wreq) < 0) {
-      printf("Can't get TX power from card, sorry\n");
+      perror("Can't get TX power from card: ");
       return;
     }
   

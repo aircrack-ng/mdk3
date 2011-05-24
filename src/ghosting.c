@@ -26,6 +26,7 @@ char *ghost_help ="###### This version supports IDS Evasion (Ghosting) ######\n"
 		  "# <period>      : How often (in ms) to switch rate/power #\n"
 		  "# <max_rate>    : Maximum Bitrate to use in MBit         #\n"
 		  "# <min_txpower> : Minimum TX power in dBm to use         #\n"
+		  "# NOTE: Does not fully work with every driver, YMMV...   #\n"
 		  "##########################################################\n";
 
 void ghosting_print_help() {
