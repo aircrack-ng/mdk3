@@ -78,7 +78,8 @@ void show_some_macs(struct ether_addr mac, struct ether_addr mac2) {
   for(i=0; i<16677214; i++) get_next_mac(mac, &mac2);
   printf("\n  Many MACs later: "); print_mac(get_next_mac(mac, &mac2));
   if (MAC_IS_BCAST(mac2)) printf("\n  Ran out of MAC addresses (correct in semi-auto and manual).");
-}
+  for(i=0; i<123456; i++) get_next_mac(mac, &mac2);
+  printf("\n  New base: "); print_mac(get_next_mac(mac, &mac2));}
 
 void test_mac_addr() {
   struct ether_addr mac, mac2;
@@ -197,7 +198,7 @@ void test_packet() {
     pkt = create_beacon(bssid, ssid, (uint8_t) (random() % 14), enc[random() % 4], (random() % 2) * 54, random() % 2);
     dump_packet(&pkt);
     free(ssid);
-    ssid = get_ssid(&pkt);
+    ssid = get_ssid(&pkt, NULL);
     caps = get_capabilities(&pkt);
     printf("SSID found in beacon: %s\n", ssid);
     printf("Capabilities: %04X\n", caps);

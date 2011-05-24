@@ -144,8 +144,9 @@ void osdep_init_txpowers()
       return;
     }
     
+    memset(&wreq, 0, sizeof(struct iwreq));
     strncpy(wreq.ifr_name, osdep_iface, IFNAMSIZ);
-    wreq.u.power.flags = 0;  //Took some time to figure that out....
+    wreq.u.power.flags = 0;
     
     if(ioctl(osdep_sockfd, SIOCGIWTXPOW, &wreq) < 0) {
       perror("Can't get TX power from card: ");
@@ -186,7 +187,8 @@ void osdep_random_txpower(int min) {
     do {
       rnd = random() % available_txpowers_count;
     } while(available_txpowers[rnd] < min);
-        
+    
+    memset(&wreq, 0, sizeof(struct iwreq));
     strncpy(wreq.ifr_name, osdep_iface, IFNAMSIZ);
     
     ioctl(osdep_sockfd, SIOCGIWTXPOW, &wreq);

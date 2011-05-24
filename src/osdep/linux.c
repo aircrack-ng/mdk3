@@ -377,7 +377,7 @@ static int linux_set_rate(struct wif *wi, int rate)
     case DT_MAC80211_RT:
 
         dev->rate = (rate/500000);
-        return 0;
+        //return 0; //Newer mac80211 stacks don't care about Radiotap header anymore, so ioctl below must also be done!
         break;
 
     default:
@@ -394,6 +394,8 @@ static int linux_set_rate(struct wif *wi, int rate)
         strncpy( wrq.ifr_name, wi_get_ifname(wi), IFNAMSIZ );
 
     wrq.u.bitrate.value = rate;
+    wrq.u.bitrate.fixed = 1;
+    
     if( ioctl( dev->fd_in, SIOCSIWRATE, &wrq ) < 0 )
     {
         return( -1 );
