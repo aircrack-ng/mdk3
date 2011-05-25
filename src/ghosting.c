@@ -30,7 +30,7 @@ char *ghost_help ="###### This version supports IDS Evasion (Ghosting) ######\n"
 		  "##########################################################\n";
 
 void ghosting_print_help() {
-  printf(ghost_help);
+  printf("%s", ghost_help);
 }
 
 void txpower_ghosting_thread() {

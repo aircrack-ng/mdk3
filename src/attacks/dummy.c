@@ -6,6 +6,11 @@
 #define DUMMY_MODE 'D'
 #define DUMMY_NAME "An empty dummy attack"
 
+// A starting point to build new attack modules for mdk3
+
+// IMPORTANT:
+// In order to include your attack into mdk3, you have to add it to attacks.h!
+
 struct dummy_options {
   int option_count;
 };
@@ -37,6 +42,29 @@ void *dummy_parse(int argc, char *argv[]) {
   return (void *) dopt;
 }
 
+void dummy_check(void *options) {
+  options = options;
+  printf("Implement check here\n");
+}
+
+struct packet dummy_getpacket(void *options) {
+  options = options;
+  struct packet pkt;
+  
+  printf("Build your packet here and return it. NULL data makes mdk3 exit\n");
+   
+  pkt.len = 0;
+  pkt.data = NULL;
+  
+  return pkt;
+}
+
+void dummy_stats(void *options) {
+  options = options;
+  
+  printf("This is called every second to display statistics\n");
+}
+
 struct attacks load_dummy() {
   struct attacks this_attack;
   char *dummy_name = malloc(strlen(DUMMY_NAME) + 1);
@@ -47,6 +75,9 @@ struct attacks load_dummy() {
   this_attack.parse_options = (fpo) dummy_parse;
   this_attack.mode_identifier = DUMMY_MODE;
   this_attack.attack_name = dummy_name;
-
+  this_attack.perform_check = (fps) dummy_check;
+  this_attack.get_packet = (fpp) dummy_getpacket;
+  this_attack.print_stats = (fps) dummy_stats;
+  
   return this_attack;
 }
