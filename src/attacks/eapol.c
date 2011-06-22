@@ -204,6 +204,7 @@ struct packet build_eapol_start_logoff(struct ether_addr *target, struct ether_a
   pkt.data[pkt.len+3] = 0x00; 
   
   pkt.len += 4;
+  #define EAPOL_LOGOFF_LEN 36
   return pkt;
 }
 
@@ -214,6 +215,7 @@ struct packet eapol_logoff(struct ether_addr *target) {
   
   do {
     sniffed = osdep_read_packet();
+    if (sniffed.len == EAPOL_LOGOFF_LEN) continue; //Skip own packets!
     hdr = (struct ieee_hdr *) sniffed.data;
     bssid = get_bssid(&sniffed);
     
