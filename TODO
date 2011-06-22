@@ -1,5 +1,8 @@
 MDK3 TODO List
 
+Fix Changelog and Authors file ;)
+Write complete docs
+
 802.11 allows you to fragment each packet into as many as 16 pieces. It would be nice if we could use fragmentated packets in every attack.
 if you want to make the WIDS vendors hate you, also match the sequence numbers of the victims
   * Done for TKIP QoS reinjection

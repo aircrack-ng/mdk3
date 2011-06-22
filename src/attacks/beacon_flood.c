@@ -22,6 +22,7 @@ struct beacon_flood_options {
   unsigned char validapmac;
   unsigned char hopto;
   uint8_t channel;
+  uint8_t use_channel;
   unsigned int speed;
 };
 
@@ -84,6 +85,7 @@ void *beacon_flood_parse(int argc, char *argv[]) {
   bopt->validapmac = 0;
   bopt->hopto = 0;
   bopt->channel = 0;
+  bopt->use_channel = 0;
   bopt->speed = 50;
   
   while ((opt = getopt(argc, argv, "n:f:v:t:w:b:mhc:s:")) != -1) {
@@ -136,8 +138,10 @@ void *beacon_flood_parse(int argc, char *argv[]) {
       break;
       case 'c':
 	ch = atoi(optarg);
-	if ((ch < 1) || (ch > 165)) { printf("\n\nInvalid channel\n"); return NULL; }
+	//As far as you can put any byte in the frame's channel field, every possible 8bit value is "valid" ;)
+	if ((ch < 0) || (ch > 255)) { printf("\n\nInvalid channel\n"); return NULL; }
 	bopt->channel = (uint8_t) ch;
+	bopt->use_channel = 1;
       break;
       case 's':
 	bopt->speed = (unsigned int) atoi(optarg);
@@ -167,10 +171,12 @@ struct packet beacon_flood_getpacket(void *options) {
     if ((packsent == 50) || ((time(NULL) - t_prev) >= 3)) {
       // Switch Channel every 50 frames or 3 seconds
       packsent = 0; t_prev = time(NULL);
-      if (bopt->channel) curchan = (int) bopt->channel;
+      if (bopt->use_channel) curchan = (int) bopt->channel;
       else curchan = (int) generate_channel();
       osdep_set_channel(curchan);
     }
+  } else if (bopt->use_channel) {
+    curchan = bopt->channel;
   } else {
     curchan = (int) generate_channel();
   }
