@@ -40,14 +40,16 @@ void deauth_longhelp()
 	  "         Read file containing MACs to run test on (Blacklist Mode)\n"
 	  "      -s <pps>\n"
 	  "         Set speed in packets per second (Default: unlimited)\n"
-	  "      -c [chan,chan,chan,...]\n"
-	  "         Enable channel hopping. Without providing any channels, mdk3 will hop an all\n"
-	  "         14 b/g channels. Channel will be changed every 3 seconds.\n");
+	  "      -c [chan,chan,...,chan[:speed]]\n"
+	  "         Enable channel hopping. When -c h is given, mdk3 will hop an all\n"
+	  "         14 b/g channels. Channel will be changed every 3 seconds,\n"
+	  "         if speed is not specified. Speed value is in milliseconds!\n");
 }
 
 
 void *deauth_parse(int argc, char *argv[]) {
-  int opt;
+  int opt, speed;
+  char *speedstr;
   struct deauth_options *dopt = malloc(sizeof(struct deauth_options));
   
   dopt->greylist = NULL;
@@ -71,7 +73,16 @@ void *deauth_parse(int argc, char *argv[]) {
 	dopt->speed = (unsigned int) atoi(optarg);
       break;
       case 'c':
-	init_channel_hopper(optarg, 3000000);
+	speed = 3000000;
+	speedstr = strrchr(optarg, ':');
+	if (speedstr != NULL) {
+	  speed = 1000 * atoi(speedstr + 1);
+	}
+	if (optarg[0] == 'h') {
+	  init_channel_hopper(NULL, speed);
+	} else {
+	  init_channel_hopper(optarg, speed);
+	}
       break;
       default:
 	deauth_longhelp();

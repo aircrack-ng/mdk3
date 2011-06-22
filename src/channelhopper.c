@@ -38,7 +38,7 @@ void init_channel_hopper(char *chanlist, int useconds)
     }
     
     if (chanlist == NULL) {    // No channel list given - using defaults
-	printf("\nUsing default channels for hopping.\n");
+	printf("\nUsing default channels for hopping every %d milliseconds.\n", useconds/1000);
     } else {
 
 	while((token = strsep(&chanlist, ",")) != NULL) {
