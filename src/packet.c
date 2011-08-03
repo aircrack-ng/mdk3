@@ -292,7 +292,7 @@ struct packet create_assoc_req(struct ether_addr client, struct ether_addr bssid
   return assoc;
 }
 
-char *get_ssid(struct packet *pkt, unsigned char *ssidlen) {
+char *get_id_type(struct packet *pkt, unsigned char *ssidlen, unsigned char type) {
   char *ssid = NULL;
   struct ieee_hdr *hdr = (struct ieee_hdr *) (pkt->data);
   unsigned char *tags = pkt->data + sizeof(struct ieee_hdr) + sizeof(struct beacon_fixed);
@@ -301,7 +301,7 @@ char *get_ssid(struct packet *pkt, unsigned char *ssidlen) {
   //Thats neither a beacon nor a probe response, therefor it has no SSID
  
   while (tags < (pkt->data + pkt->len)) {
-    if (tags[0] == BEACON_TAGTYPE_SSID) {
+    if (tags[0] == type) {
       ssid = malloc(tags[1] + 1);
       if (ssidlen) *ssidlen = tags[1];
       memcpy(ssid, tags + 2, tags[1]);
@@ -311,8 +311,16 @@ char *get_ssid(struct packet *pkt, unsigned char *ssidlen) {
     tags += tags[1] + 2;
   }
   
-  printf("No SSID found in Beacon Frame\n");
+  //No ID found in Beacon Frame!
   return NULL;
+}
+
+char *get_ssid(struct packet *pkt, unsigned char *ssidlen) {
+  return get_id_type(pkt, ssidlen, BEACON_TAGTYPE_SSID);
+}
+
+char *get_meshid(struct packet *pkt, unsigned char *meshidlen) {
+  return get_id_type(pkt, meshidlen, BEACON_TAGTYPE_MESHID);  
 }
 
 uint16_t get_capabilities(struct packet *pkt) {
@@ -377,4 +385,14 @@ void increase_seqno(struct packet *pkt) {
   frgseq += 0x10;	//Lower 4 bytes are fragment number
   
   hdr->frag_seq = htole16(frgseq);
+}
+
+struct packet copy_packet(struct packet src) {
+  struct packet retn;
+  
+  retn.len = src.len;
+  retn.data = malloc(src.len);
+  memcpy(retn.data, src.data, src.len);
+  
+  return retn;
 }

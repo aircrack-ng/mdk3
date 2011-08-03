@@ -15,6 +15,7 @@
 #define IEEE80211_TYPE_DISASSOC	0xA0
 #define IEEE80211_TYPE_ASSOCREQ	0x00
 #define IEEE80211_TYPE_ASSOCRES	0x10
+#define IEEE80211_TYPE_ACTION   0xD0
 
 #define DEFAULT_BEACON_INTERVAL	0x64
 #define DEFAULT_11B_RATES	"\x01\x04\x82\x84\x8b\x96"
@@ -34,12 +35,16 @@
 #define DEFAULT_LISTEN_INTERVAL	0x0001
 
 #define BEACON_TAGTYPE_SSID	0x00
+#define BEACON_TAGTYPE_MESHID   0x72
 
 #define LLC_SNAP		0xAA
 #define LLC_UNNUMBERED		0x03
 
 #define RSN_TYPE_KEY		0x03
 #define RSN_DESCRIPTOR_KEY	0x02
+
+#define MESH_ACTION_CATEGORY	0x0D
+#define MESH_ACTION_LINKOPEN	0x01
 
 struct packet {
   unsigned char *data;
@@ -97,6 +102,11 @@ struct rsn_auth {
   uint16_t wpa_length;
 } __attribute__((packed));
 
+struct action_fixed {
+  uint8_t category;
+  uint8_t action_code;
+} __attribute__((packed));
+
 //dsflags: 'a' = AdHoc, Beacon   'f' = From DS   't' = To DS   'w' = WDS (intra DS)
 //Set recv to SE_NULLMAC if you don't create WDS packets. (its ignored anyway)
 void create_ieee_hdr(struct packet *pkt, uint8_t type, char dsflags, uint16_t duration, struct ether_addr destination, struct ether_addr source, struct ether_addr bssid_or_transm, struct ether_addr recv, uint8_t fragment);
@@ -126,10 +136,11 @@ struct packet create_disassoc(struct ether_addr destination, struct ether_addr s
 //Capabilities and SSID should match AP, so just copy them from one of its beacon frames
 struct packet create_assoc_req(struct ether_addr client, struct ether_addr bssid, uint16_t capabilities, char *ssid, unsigned char bitrate);
 
-//Copy SSID from Beacon Frame into String. Must free afterwards! Returns NULL on Errors (no beacon frame, no SSID tag found)
+//Copy SSID or MeshID from Beacon Frame into String. Must free afterwards! Returns NULL on Errors (no beacon frame, no SSID tag found)
 //SSID len is also reported, because on hidden SSIDs, strlen() doesn't work, since the SSID is all NULLBYTES!
 //If you don't need that info, set ssidlen to NULL!
 char *get_ssid(struct packet *pkt, unsigned char *ssidlen);
+char *get_meshid(struct packet *pkt, unsigned char *meshidlen);
 
 uint16_t get_capabilities(struct packet *pkt);
 
@@ -140,5 +151,8 @@ void add_llc_header(struct packet *pkt, uint16_t llc_type);
 void add_eapol(struct packet *pkt, uint16_t wpa_length, uint8_t *wpa_element, uint8_t wpa_1or2);
 
 void increase_seqno(struct packet *pkt);
+
+/* Deep Copy - Duplicates data buffer, so you need to free old and new packet! */
+struct packet copy_packet(struct packet src);
 
 #endif

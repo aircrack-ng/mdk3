@@ -7,6 +7,7 @@
 #include "deauth.h"
 #include "countermeasures.h"
 #include "eapol.h"
+#include "ieee80211s.h"
 
 #include "../packet.h"
 
