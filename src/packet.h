@@ -3,6 +3,7 @@
 
 #include <inttypes.h>
 
+#include "osdep/byteorder.h"
 #include "mac_addr.h"
 
 #define IEEE80211_TYPE_BEACON	0x80
