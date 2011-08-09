@@ -1,3 +1,5 @@
+#define _GNU_SOURCE //For getline() support
+
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>

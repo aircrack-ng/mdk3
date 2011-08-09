@@ -64,7 +64,7 @@ void create_ieee_hdr(struct packet *pkt, uint8_t type, char dsflags, uint16_t du
 struct ether_addr *get_addr(struct packet *pkt, char type) {
   uint8_t dsflags;
   struct ieee_hdr *hdr;
-  struct ether_addr *src, *dst, *bss, *trn = NULL;
+  struct ether_addr *src = NULL, *dst = NULL, *bss = NULL, *trn = NULL;
   
   if(! pkt) {
     printf("BUG: Got NULL packet!\n");
