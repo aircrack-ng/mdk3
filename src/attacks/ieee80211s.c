@@ -12,8 +12,6 @@
 #define IEEE80211S_MODE 's'
 #define IEEE80211S_NAME "Attacks for IEEE 802.11s mesh networks"
 
-// IMPORTANT:
-// In order to include your attack into mdk3, you have to add it to attacks.h!
 
 struct packet action_frame_sniffer_pkt;
 pthread_mutex_t sniff_packet_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -166,6 +164,7 @@ struct packet do_fuzzing(struct ieee80211s_options *dopt) {
   struct ieee_hdr *hdr;
   static struct ether_addr genmac;
   static unsigned int genmac_uses = 0;
+  unsigned int curfuzz, i;
   
   if (! (genmac_uses % 10)) { //New MAC every 10 packets
     genmac = generate_mac(MAC_KIND_CLIENT);
@@ -189,7 +188,13 @@ struct packet do_fuzzing(struct ieee80211s_options *dopt) {
   sniff = copy_packet(action_frame_sniffer_pkt);
   pthread_mutex_unlock(&sniff_packet_mutex);
   
-  switch (dopt->fuzz_type) {
+  if (dopt->fuzz_type == 5) {
+    curfuzz = (random() % 4) + 1;
+  } else {
+    curfuzz = dopt->fuzz_type;
+  }
+  
+  switch (curfuzz) {
     case 1:
       return sniff;
     break;
@@ -204,10 +209,9 @@ struct packet do_fuzzing(struct ieee80211s_options *dopt) {
       return sniff;
     break;
     case 4:
-      pkt.len = 0; pkt.data = NULL;
-    break;
-    case 5:
-      pkt.len = 0; pkt.data = NULL;
+      for (i=0; i<((random() % sniff.len) / 4) + 1; i++)
+        sniff.data[random() % sniff.len] = random();
+      return sniff;
     break;
     default:
       printf("BUG! Unknown fuzzing type %c\n", dopt->fuzz_type);
