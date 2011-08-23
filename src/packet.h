@@ -45,7 +45,9 @@
 #define RSN_DESCRIPTOR_KEY	0x02
 
 #define MESH_ACTION_CATEGORY	0x0D
-#define MESH_ACTION_LINKOPEN	0x01
+#define MESH_ACTION_PATHSEL	0x01
+#define MESH_TAG_PREQ		0x82
+#define MESH_TAG_PREP		0x83
 
 struct packet {
   unsigned char *data;
@@ -106,6 +108,35 @@ struct rsn_auth {
 struct action_fixed {
   uint8_t category;
   uint8_t action_code;
+  uint8_t tag;
+  uint8_t taglen;
+} __attribute__((packed));
+
+struct mesh_preq {
+  uint8_t flags;
+  uint8_t hop_count;
+  uint8_t ttl;
+  uint32_t discovery_id;
+  struct ether_addr originator;
+  uint32_t orig_seq;
+  uint32_t lifetime;
+  uint32_t metric;
+  uint8_t target_count;
+  uint8_t target_flags;
+  struct ether_addr target;
+  uint32_t target_seq;
+} __attribute__((packed));
+
+struct mesh_prep {
+  uint8_t flags;
+  uint8_t hop_count;
+  uint8_t ttl;
+  struct ether_addr target;
+  uint32_t target_seq;
+  uint32_t lifetime;
+  uint32_t metric;
+  struct ether_addr originator;
+  uint32_t orig_seq;
 } __attribute__((packed));
 
 //dsflags: 'a' = AdHoc, Beacon   'f' = From DS   't' = To DS   'w' = WDS (intra DS)
