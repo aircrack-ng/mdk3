@@ -323,6 +323,10 @@ struct packet eapol_getpacket(void *options) {
       pkt = create_assoc_req(*client, *(eopt->target), target_capabilities, target_ssid, 54);
       assocs++;
       if (! target_rsn) {
+	if (!target_wpa1) {
+	  printf("\rERROR: AP sends no WPA tags, AP does not support WPA, exiting...\n");
+	  pkt.data = NULL; pkt.len = 0; return pkt;
+	}
 	pkt.data = realloc(pkt.data, pkt.len + 2 + target_wpa1[1]);
 	memcpy(pkt.data + pkt.len, target_wpa1, target_wpa1[1] + 2);
 	pkt.len += target_wpa1[1] + 2;
