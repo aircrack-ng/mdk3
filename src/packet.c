@@ -345,7 +345,7 @@ void add_llc_header(struct packet *pkt, uint16_t llc_type) {
   pkt->len += 8;
 }
 
-void add_eapol(struct packet *pkt, uint16_t wpa_length, uint8_t *wpa_element, uint8_t wpa_1or2) {
+void add_eapol(struct packet *pkt, uint16_t wpa_length, uint8_t *wpa_element, uint8_t wpa_1or2, uint8_t rsn_version) {
   struct rsn_auth *rsn;
   static uint64_t replay_ctr = 0;
   uint32_t t;
@@ -355,7 +355,7 @@ void add_eapol(struct packet *pkt, uint16_t wpa_length, uint8_t *wpa_element, ui
   pkt->data = realloc(pkt->data, pkt->len + sizeof(struct rsn_auth) + wpa_length);
 
   rsn = (struct rsn_auth *) (pkt->data + sizeof(struct ieee_hdr) + sizeof(struct llc_header));
-  rsn->version = 2;
+  rsn->version = rsn_version;
   rsn->type = RSN_TYPE_KEY;
   rsn->length = htobe16(sizeof(struct rsn_auth) + wpa_length - 4);
   rsn->descriptor = RSN_DESCRIPTOR_KEY;

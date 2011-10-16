@@ -170,7 +170,7 @@ void decode_beacon(struct packet *beacon) {
   printf("Good luck with this thing. Until now, it only made my local mac80211 stack being stuck as soon as EAPOL is injected...\n");
 }
 
-struct packet build_eapol(struct ether_addr *target, struct ether_addr *client) {
+struct packet build_eapol(struct ether_addr *target, struct ether_addr *client, uint8_t rsn_version) {
   struct packet pkt;
   
   pkt.len = sizeof(struct ieee_hdr);
@@ -180,9 +180,9 @@ struct packet build_eapol(struct ether_addr *target, struct ether_addr *client) 
   add_llc_header(&pkt, LLC_TYPE_EAPOL);
 
   if (! target_rsn) {
-    add_eapol(&pkt, 2 + target_wpa1[1], (uint8_t *) target_wpa1, 1);
+    add_eapol(&pkt, 2 + target_wpa1[1], (uint8_t *) target_wpa1, 1, rsn_version);
   } else {
-    add_eapol(&pkt, 2 + target_rsn[1], (uint8_t *) target_rsn, 2);
+    add_eapol(&pkt, 2 + target_rsn[1], (uint8_t *) target_rsn, 2, rsn_version);
   }
   return pkt;
 }
@@ -243,6 +243,7 @@ struct packet eapol_getpacket(void *options) {
   char usable_packet = 0, pack_type = 0;
   static char need_beacon = 1, blocks_auth = 0;
   static struct packet *old = NULL;
+  uint8_t rsn_version = 0;
   
   sleep_till_next_packet(eopt->speed);
 
@@ -305,8 +306,10 @@ struct packet eapol_getpacket(void *options) {
       if ((hdr->type == IEEE80211_TYPE_DATA) || (hdr->type == IEEE80211_TYPE_QOSDATA)) {
 	struct llc_header *llc = (struct llc_header *) (sniffed.data + sizeof(struct ieee_hdr));
 	if (llc->type == htobe16(LLC_TYPE_EAPOL)) {
+	  struct rsn_auth *rsn = (struct rsn_auth *) (sniffed.data + sizeof(struct ieee_hdr) + sizeof(struct llc_header));
 	  usable_packet = 1; pack_type = GOT_KEY1;
 	  client = get_destination(&sniffed);
+	  rsn_version = rsn->version;
 	}
       }
 
@@ -341,7 +344,7 @@ struct packet eapol_getpacket(void *options) {
       starts++;
     break;
     case GOT_KEY1:
-      pkt = build_eapol(eopt->target, client);
+      pkt = build_eapol(eopt->target, client, rsn_version);
       eapols++;
     break;
     default: //Somethings wrong....
