@@ -354,6 +354,7 @@ struct packet create_loop(struct ieee80211s_options *dopt) {
       if ((act->category == MESH_ACTION_CATEGORY) && (act->action_code == MESH_ACTION_PATHSEL) && (act->tag == MESH_TAG_PREP)) {
 	prep = (struct mesh_prep *) (sniff.data + sizeof(struct ieee_hdr) + sizeof(struct action_fixed));
 	if (prep->metric == 1) continue; //skip injected packets
+	if (prep->hop_count == 0) continue; //cannot create loop at target with itself!
 	break;
       }
     }
