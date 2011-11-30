@@ -16,6 +16,7 @@ struct beacon_flood_options {
   char *ssid;
   char *ssid_filename;
   char *mac_ssid_filename;
+  unsigned char all_chars;
   unsigned char type;
   char encryptions[5];
   char bitrates;
@@ -43,6 +44,9 @@ void beacon_flood_longhelp()
 	  "  This can sometimes crash network scanners and drivers!\n"
 	  "      -n <ssid>\n"
 	  "         Use SSID <ssid> instead of randomly generated ones\n"
+	  "      -a\n"
+	  "         Use also non-printable caracters in generated SSIDs\n"
+	  "         and create SSIDs that break the 32-byte limit\n"
 	  "      -f <filename>\n"
 	  "         Read SSIDs from file\n"
 	  "      -v <filename>\n"
@@ -79,6 +83,7 @@ void *beacon_flood_parse(int argc, char *argv[]) {
   bopt->ssid = NULL;
   bopt->ssid_filename = NULL;
   bopt->mac_ssid_filename = NULL;
+  bopt->all_chars = 0;
   bopt->type = 2;
   strcpy(bopt->encryptions, "nwta");
   bopt->bitrates = 'a';
@@ -88,7 +93,7 @@ void *beacon_flood_parse(int argc, char *argv[]) {
   bopt->use_channel = 0;
   bopt->speed = 50;
   
-  while ((opt = getopt(argc, argv, "n:f:v:t:w:b:mhc:s:")) != -1) {
+  while ((opt = getopt(argc, argv, "n:f:av:t:w:b:mhc:s:")) != -1) {
     switch (opt) {
       case 'n':
 	if (strlen(optarg) > 255) {
@@ -96,19 +101,24 @@ void *beacon_flood_parse(int argc, char *argv[]) {
 	} else if (strlen(optarg) > 32) {
 	  printf("NOTE: Using Non-Standard SSID with length > 32\n");
 	}
-	if (bopt->ssid_filename || bopt->mac_ssid_filename) {
-	  printf("Only one of -n -f or -v may be selected\n"); return NULL; }
+	if (bopt->ssid_filename || bopt->mac_ssid_filename || bopt->all_chars) {
+	  printf("Only one of -n -a -f or -v may be selected\n"); return NULL; }
 	bopt->ssid = malloc(strlen(optarg) + 1); strcpy(bopt->ssid, optarg);
       break;
       case 'f':
-	if (bopt->ssid || bopt->mac_ssid_filename) {
-	  printf("Only one of -n -f or -v may be selected\n"); return NULL; }
+	if (bopt->ssid || bopt->mac_ssid_filename || bopt->all_chars) {
+	  printf("Only one of -n -a -f or -v may be selected\n"); return NULL; }
 	bopt->ssid_filename = malloc(strlen(optarg) + 1); strcpy(bopt->ssid_filename, optarg);
       break;
       case 'v':
-	if (bopt->ssid_filename || bopt->ssid) {
-	  printf("Only one of -n -f or -v may be selected\n"); return NULL; }
+	if (bopt->ssid_filename || bopt->ssid || bopt->all_chars) {
+	  printf("Only one of -n -a -f or -v may be selected\n"); return NULL; }
 	bopt->mac_ssid_filename = malloc(strlen(optarg) + 1); strcpy(bopt->mac_ssid_filename, optarg);
+      break;
+      case 'a':
+	if (bopt->ssid_filename || bopt->ssid || bopt->mac_ssid_filename) {
+	  printf("Only one of -n -a -f or -v may be selected\n"); return NULL; }
+	bopt->all_chars = 1;
       break;
       case 't':
 	if (! strcmp(optarg, "1")) bopt->type = 1;
@@ -201,7 +211,7 @@ struct packet beacon_flood_getpacket(void *options) {
       freeline = 1;
     } while (ssid == NULL);
   } else {
-    ssid = generate_ssid();
+    ssid = generate_ssid(bopt->all_chars);
     freessid = 1;
   }
   
@@ -232,9 +242,14 @@ struct packet beacon_flood_getpacket(void *options) {
 }
 
 void beacon_flood_print_stats(void *options) {
-  options = options; //Avoid unused warning
+  struct beacon_flood_options *bopt = (struct beacon_flood_options *) options;
+  
   printf("\rCurrent MAC: "); print_mac(bssid);
-  printf(" on Channel %2d with SSID: %s\n", curchan, ssid);
+  if (bopt->all_chars) {
+    printf(" on Channel %2d              \n", curchan);
+  } else {
+    printf(" on Channel %2d with SSID: %s\n", curchan, ssid);
+  }
 }
 
 void beacon_flood_perform_check(void *options) {

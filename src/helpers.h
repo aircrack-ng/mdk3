@@ -3,7 +3,7 @@
 
 char generate_channel();
 
-char *generate_ssid();
+char *generate_ssid(unsigned char malformed);
 
 // Call this again to read line after line
 // At end of file, it returns NULL

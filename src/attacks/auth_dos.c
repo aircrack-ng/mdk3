@@ -329,7 +329,7 @@ struct ether_addr auth_dos_get_target() {
 
 struct packet auth_dos_get_data(struct ether_addr client, struct ether_addr bssid) {
   struct packet retn;
-  struct ether_addr *dst, *src, *bss, dstcopy;
+  struct ether_addr *dst, *src, *bss;
   struct ieee_hdr *hdr;
     
   //NOTE: ToDS frames are being reinjected with the source address of one of the fake nodes
@@ -343,9 +343,6 @@ struct packet auth_dos_get_data(struct ether_addr client, struct ether_addr bssi
   retn.data = malloc(dataclist->data_len);
   memcpy(retn.data, dataclist->data, dataclist->data_len);
   retn.len = dataclist->data_len;
-  
-  dst = get_destination(&retn);
-  dstcopy = *dst;	//Copy original dst
   
   hdr = (struct ieee_hdr *) retn.data;
   

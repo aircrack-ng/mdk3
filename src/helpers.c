@@ -18,29 +18,35 @@ char generate_channel()
 }
 
 
-char generate_printable_char()
+char generate_printable_char(unsigned char malformed)
 {
-// Generate random printable ascii char
+// Generate random printable ascii char, or just a random byte
 
     char rnd = 0;
-    rnd = (random() % 94) + ' ';
+
+    if (malformed) {
+      rnd = random();
+    } else {
+      rnd = (random() % 94) + ' ';
+    }
 
     return rnd;
 }
 
 
-char *generate_ssid()
+char *generate_ssid(unsigned char malformed)
 {
-// Generate random VALID SSID
-// Need another to generate INVALID SSIDs (overlenght) for testing their impact on wireless devices
-
-    char *ssid = (char*) malloc(33);
+    char *ssid = (char*) malloc(256);
     int len=0;
     int t;
 
-    len = (random() % 32) + 1;
+    if (malformed) {
+      len = (random() % 256);
+    } else {
+      len = (random() % 32);
+    }
 
-    for (t=0; t<len; t++) ssid[t] = generate_printable_char();
+    for (t=0; t<len; t++) ssid[t] = generate_printable_char(malformed);
     ssid[len]='\x00';
 
     return ssid;
