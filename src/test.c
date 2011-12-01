@@ -49,7 +49,7 @@ void test_helpers() {
     assert(chan[i] < 15);
   }
   
-  for(i=0; i<8; i++) ssid[i] = generate_ssid();
+  for(i=0; i<8; i++) ssid[i] = generate_ssid(0);
   printf("\nRandom SSIDs: "); print_strings(ssid, 8);
   for(i=0; i<8; i++) {
     assert(strlen(ssid[i]) > 0);
@@ -134,7 +134,7 @@ void test_linkedlist() {
   printf("  Searching \"%s\" in empty list: %X\n", tdata, (unsigned int) search_data(cl, (u_char *) tdata, strlen(tdata)));
   printf("  Adding random data to list.\n");
   for (i=0; i<5; i++) {
-    rdata = generate_ssid();
+    rdata = generate_ssid(0);
     cl = add_to_clist(cl, (u_char *) rdata, random(), strlen(rdata)+1);
     free(rdata);
   }
@@ -142,7 +142,7 @@ void test_linkedlist() {
   cl = add_to_clist(cl, (u_char *) tdata, 0, strlen(tdata)+1);
   printf("  Adding more random data to list.\n");
   for (i=0; i<15; i++) {
-    rdata = generate_ssid();
+    rdata = generate_ssid(0);
     cl = add_to_clist(cl, (u_char *) rdata, random(), strlen(rdata)+1);
     free(rdata);
   }
@@ -194,7 +194,7 @@ void test_packet() {
   printf("Creating random beacons :)\n");
   for(i=0; i<20; i++) {
     bssid = generate_mac(MAC_KIND_AP);
-    ssid = generate_ssid();
+    ssid = generate_ssid(0);
     pkt = create_beacon(bssid, ssid, (uint8_t) (random() % 14), enc[random() % 4], (random() % 2) * 54, random() % 2);
     dump_packet(&pkt);
     free(ssid);
@@ -216,7 +216,7 @@ void test_packet() {
   printf("Creating random probes :)\n");
   for(i=0; i<20; i++) {
     station = generate_mac(MAC_KIND_CLIENT);
-    ssid = generate_ssid();
+    ssid = generate_ssid(0);
     pkt = create_probe(station, ssid, (random() % 2) * 54);
     dump_packet(&pkt);
     free(pkt.data);
@@ -242,7 +242,7 @@ void test_packet() {
   printf("Creating random associations :)\n");
   for(i=0; i<20; i++) {
     bssid = generate_mac(MAC_KIND_AP);
-    ssid = generate_ssid();
+    ssid = generate_ssid(0);
     station = generate_mac(MAC_KIND_CLIENT);
     pkt = create_assoc_req(station, bssid, 0x0431, ssid, 54);
     dump_packet(&pkt);
