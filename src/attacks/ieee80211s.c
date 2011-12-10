@@ -185,7 +185,7 @@ struct packet do_fuzzing(struct ieee80211s_options *dopt) {
   struct ieee_hdr *hdr;
   static struct ether_addr genmac;
   static unsigned int genmac_uses = 0;
-  unsigned int curfuzz, i;
+  unsigned int curfuzz, i, j;
   
   if (! (genmac_uses % 10)) { //New MAC every 10 packets
     genmac = generate_mac(MAC_KIND_CLIENT);
@@ -230,7 +230,8 @@ struct packet do_fuzzing(struct ieee80211s_options *dopt) {
       return sniff;
     break;
     case 4:
-      for (i=0; i<((random() % sniff.len) / 4) + 1; i++)
+      j = ((random() % sniff.len) / 4) + 1;
+      for (i=0; i<j; i++)
         sniff.data[random() % sniff.len] = random();
       return sniff;
     break;
