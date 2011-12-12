@@ -133,3 +133,15 @@ char *read_next_line(char *filename, char reset)
     
     return line;
 }
+
+unsigned char *hex2bin(char *in, int *len) {
+  *len = strlen(in) / 2;
+  unsigned char *out = malloc(*len);
+  int i;
+  
+  for (i=0; i<*len; i++) {
+    sscanf(in + (i*2), "%2hhx", out+i);
+  }
+  
+  return out;
+}

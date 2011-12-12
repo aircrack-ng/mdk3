@@ -25,6 +25,8 @@ struct beacon_flood_options {
   uint8_t channel;
   uint8_t use_channel;
   unsigned int speed;
+  unsigned char *ies;
+  int ies_len;
 };
 
 //Global things, shared by packet creation and stats printing
@@ -71,6 +73,8 @@ void beacon_flood_longhelp()
 	  "      -c <chan>\n"
 	  "         Create fake networks on channel <chan>. If you want your card to\n"
 	  "         hop on this channel, you have to set -h option, too.\n"
+	  "      -i <HEX>\n"
+	  "         Add user-defined IE(s) in hexadecimal at the end of the tagged parameters\n"
 	  "      -s <pps>\n"
 	  "         Set speed in packets per second (Default: 50)\n");
 }
@@ -92,8 +96,10 @@ void *beacon_flood_parse(int argc, char *argv[]) {
   bopt->channel = 0;
   bopt->use_channel = 0;
   bopt->speed = 50;
+  bopt->ies = NULL;
+  bopt->ies_len = 0;
   
-  while ((opt = getopt(argc, argv, "n:f:av:t:w:b:mhc:s:")) != -1) {
+  while ((opt = getopt(argc, argv, "n:f:av:t:w:b:mhc:s:i:")) != -1) {
     switch (opt) {
       case 'n':
 	if (strlen(optarg) > 255) {
@@ -155,6 +161,9 @@ void *beacon_flood_parse(int argc, char *argv[]) {
       break;
       case 's':
 	bopt->speed = (unsigned int) atoi(optarg);
+      break;
+      case 'i':
+	bopt->ies = hex2bin(optarg, &(bopt->ies_len));
       break;
       default:
 	beacon_flood_longhelp();
@@ -236,6 +245,7 @@ struct packet beacon_flood_getpacket(void *options) {
   }
   
   pkt = create_beacon(bssid, ssid, (uint8_t) curchan, bopt->encryptions[encindex], bitrate, adhoc);
+  if (bopt->ies) append_data(&pkt, bopt->ies, bopt->ies_len);
   
   sleep_till_next_packet(bopt->speed);
   return pkt;

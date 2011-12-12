@@ -331,6 +331,14 @@ uint16_t get_capabilities(struct packet *pkt) {
   return le16toh(bf->capabilities);
 }
 
+void append_data(struct packet *pkt, unsigned char *data, int len) {
+  pkt->data = realloc(pkt->data, pkt->len + len);
+  
+  memcpy(pkt->data + pkt->len, data, len);
+  
+  pkt->len += len;
+}
+
 void add_llc_header(struct packet *pkt, uint16_t llc_type) {
   struct llc_header *llc;
   

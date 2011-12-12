@@ -13,4 +13,7 @@ char *read_next_line(char *filename, char reset);
 //Sleeps till the next packet should be sent base on pps packets per second
 void sleep_till_next_packet(unsigned int pps);
 
+//Convert hex input to binary memory, user needs to free result
+unsigned char *hex2bin(char *in, int *len);
+
 #endif
