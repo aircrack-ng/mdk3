@@ -153,11 +153,12 @@ unsigned int get_ssid_len(struct ether_addr target) {
       ap = get_source(&pkt);
       if (MAC_MATCHES(*ap, target)) {
 	ssid = get_ssid(&pkt, &ssidlen);
-	if (ssidlen < 2) return 0;	//SSID lengths 0 and 1 are known to be "full hidden", ie no length info :(
+	if (ssidlen < 2) { free(ssid); return 0; }  //SSID lengths 0 and 1 are known to be "full hidden", ie no length info :(
 	if (strlen(ssid) == ssidlen) {
 	  printf("WARNING: SSID DOES NOT SEEM TO BE HIDDEN, SSID IS %s\n", ssid);
 	  printf("mdk3 will still continue, but its unlikely that this SSID is wrong\n");
 	}
+	free(ssid);
 	return ssidlen;
       }
     }
@@ -274,6 +275,7 @@ void probing_sniffer(void *options) {
 	  ssid = get_ssid(&pkt, NULL);
 	  printf("\rProbe Response from target AP with SSID %s                \n", ssid);
 	  printf("Job's done, have a nice day :)\n");
+	  free(ssid);
 	  exit(0);
 	} else if (! popt->target) {
 	  printf("\rProbe response from "); print_mac(*ap);

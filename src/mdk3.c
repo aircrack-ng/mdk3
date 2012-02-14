@@ -119,6 +119,7 @@ int main(int argc, char *argv[]) {
   
   /* drop privileges */
   setuid(getuid());
+  for(i=0; i<att_cnt; i++) free(a[i].attack_name); //Make Valgrind smile :)
   
   if ((argc > 3) && (! strcmp(argv[3], "--ghost"))) {
 #ifdef __linux__

@@ -96,6 +96,12 @@ void *wids_parse(int argc, char *argv[]) {
     }
   }
 
+  if (! wopt->target) {
+    wids_longhelp();
+    printf("\n\nTarget must be specified!\n");
+    return NULL;
+  }
+
   return (void *) wopt;
 }
 
