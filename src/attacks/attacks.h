@@ -8,6 +8,7 @@
 #include "countermeasures.h"
 #include "eapol.h"
 #include "ieee80211s.h"
+#include "wids.h"
 
 #include "../packet.h"
 

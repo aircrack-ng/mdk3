@@ -19,6 +19,10 @@ CTS control frame flooding
 
 * Fuzzing mode modifying incoming packets or creating random ones
 
+* Beacon Flooding should also have an options to send probe requests and responses (unicast + broadcast probes) to annoy IDS ;)
+
+* Match Sequence Numbers for all attacks that impersonate somebody (like, almost all attacks do) for MAXIMUM WIDS PAIN!
+
 EAP attacks:
 
 802.1X EAP-Failure

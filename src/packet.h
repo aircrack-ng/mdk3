@@ -186,6 +186,9 @@ void add_llc_header(struct packet *pkt, uint16_t llc_type);
 void add_eapol(struct packet *pkt, uint16_t wpa_length, uint8_t *wpa_element, uint8_t wpa_1or2, uint8_t rsn_version);
 
 void increase_seqno(struct packet *pkt);
+uint16_t get_seqno(struct packet *pkt);
+//If pkt is NULL in set_seqno, the sequence number for the next call to create_ieee_hdr will be seqno + 1!
+void set_seqno(struct packet *pkt, uint16_t seqno);
 
 /* Deep Copy - Duplicates data buffer, so you need to free old and new packet! */
 struct packet copy_packet(struct packet src);

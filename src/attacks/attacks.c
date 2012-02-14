@@ -2,7 +2,7 @@
 
 #include "attacks.h"
 
-int attack_count = 7;
+int attack_count = 8;
 
 struct attacks *load_attacks(int *count) {
   struct attacks *attacks = malloc(sizeof(struct attacks) * attack_count);
@@ -14,6 +14,7 @@ struct attacks *load_attacks(int *count) {
   attacks[4] = load_countermeasures();
   attacks[5] = load_eapol();
   attacks[6] = load_ieee80211s();
+  attacks[7] = load_wids();
 
   *count = attack_count;
   return attacks;

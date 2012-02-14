@@ -4,8 +4,9 @@
 
 #include "packet.h"
 
+static uint16_t seqno = 0;
+
 void create_ieee_hdr(struct packet *pkt, uint8_t type, char dsflags, uint16_t duration, struct ether_addr destination, struct ether_addr source, struct ether_addr bssid_or_transm, struct ether_addr recv, uint8_t fragment) {
-  static uint16_t seqno = 0;
   struct ieee_hdr *hdr = (struct ieee_hdr *) pkt->data;
 
   //If fragment, do not increase sequence
@@ -391,6 +392,34 @@ void increase_seqno(struct packet *pkt) {
   
   frgseq += 0x10;	//Lower 4 bytes are fragment number
   
+  hdr->frag_seq = htole16(frgseq);
+}
+
+uint16_t get_seqno(struct packet *pkt) {
+  uint16_t seq;
+  struct ieee_hdr *hdr = (struct ieee_hdr *) (pkt->data);
+
+  seq = letoh16(hdr->frag_seq);
+  seq >>= 4;
+
+  return seq;
+}
+
+void set_seqno(struct packet *pkt, uint16_t seq) {
+  struct ieee_hdr *hdr;
+  uint16_t frgseq;
+
+  if (!pkt) {
+    seqno = seq;
+    return;
+  }
+
+  hdr = (struct ieee_hdr *) (pkt->data);
+  frgseq = letoh16(hdr->frag_seq);
+
+  frgseq &= 0x000F;       //Clear seq, but keep fragment intact;
+  frgseq |= (seq << 4); //Add seq
+
   hdr->frag_seq = htole16(frgseq);
 }
 

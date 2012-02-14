@@ -184,7 +184,6 @@ struct clistwidsclient *add_to_clistwidsclient(struct clistwidsclient *c, struct
   memcpy(new_item->data, data, data_len);
   new_item->status = status;
   new_item->data_len = data_len;
-  new_item->retry = 0;
   new_item->bssid = bssid;
 
   pthread_mutex_unlock(&clist_mutex);
