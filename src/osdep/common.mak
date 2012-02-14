@@ -2,7 +2,7 @@ ifndef TOOL_PREFIX
 TOOL_PREFIX	=
 endif
 ifndef OSNAME
-OSNAME		= $(shell uname -s | sed -e 's/.*CYGWIN.*/cygwin/g')
+OSNAME		= $(shell uname -s | sed -e 's/.*CYGWIN.*/cygwin/g' -e 's,/,-,g')
 endif
 ifndef SQLITE
 SQLITE		= false
@@ -73,8 +73,13 @@ CFLAGS          += $(OPTFLAGS) $(REVFLAGS) $(COMMON_CFLAGS)
 prefix          = /usr/local
 bindir          = $(prefix)/bin
 sbindir         = $(prefix)/sbin
-mandir          = $(prefix)/man/man1
+mandir          = $(prefix)/share/man/man1
 datadir         = $(prefix)/share
 docdir          = $(datadir)/doc/aircrack-ng
 libdir		= $(prefix)/lib
 etcdir		= $(prefix)/etc/aircrack-ng 
+
+GCC_OVER45	= $(shell expr 45 \<= `$(CC) -dumpversion | awk -F. '{ print $1$2 }'`)
+ifeq ($(GCC_OVER45), 1)
+CFLAGS		+= -Wno-unused-but-set-variable
+endif

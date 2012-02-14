@@ -16,8 +16,8 @@ OBJS_NBSD	= $(OBJS) netbsd.o netbsd_tap.o
 OBJS_FBSD	= $(OBJS) freebsd.o freebsd_tap.o
 OBJS_LINUX	= $(OBJS) linux.o linux_tap.o radiotap/radiotap-parser.o common.o
 OBJS_DUMMY	= $(OBJS) dummy.o dummy_tap.o
-OBJS_CYGWIN	= $(OBJS) cygwin.o cygwin_tap.o
-OBJS_DARWIN = $(OBJS) darwin.o darwin_tap.o
+OBJS_CYGWIN	= $(OBJS) cygwin.o cygwin_tap.o radiotap/radiotap-parser.o
+OBJS_DARWIN = $(OBJS) darwin.o darwin_tap.o radiotap/radiotap-parser.o
 
 # XXX make it a DLL, without polluting cygwin.c
 DOPCAP		=
@@ -40,6 +40,11 @@ all:
 	$(RANLIB) $(LIB)
 	touch $(@)
 
+.os.GNU-kFreeBSD: $(OBJS_FBSD)
+	$(AR) cru $(LIB) $(OBJS_FBSD)
+	$(RANLIB) $(LIB)
+	touch $(@)
+
 .os.OpenBSD: $(OBJS_OBSD)
 	$(AR) cru $(LIB) $(OBJS_OBSD)
 	$(RANLIB) $(LIB)
@@ -57,13 +62,13 @@ all:
 
 .os.cygwin: $(OBJS_CYGWIN) 
 	$(DOPCAP)
-	$(AR) cru $(LIB) *.o
+	$(AR) cru $(LIB) *.o radiotap/radiotap-parser.o
 	$(RANLIB) $(LIB) 
 	touch $(@)
 
 .os.Darwin: $(OBJS_DARWIN) 
 	$(DOPCAP)
-	$(AR) cru $(LIB) *.o
+	$(AR) cru $(LIB) $(OBJS_DARWIN)
 	$(RANLIB) $(LIB) 
 	touch $(@)
 

@@ -5,7 +5,7 @@ MANDIR		= $(PREFIX)/share/man
 SRC		= src
 
 
-all:
+all: clean
 	$(MAKE) -C $(SRC)
 
 install: all

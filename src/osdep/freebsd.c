@@ -560,11 +560,11 @@ struct wif *wi_open_osdep(char *iface)
 
 int get_battery_state(void)
 {
-#if defined(__FreeBSD__)
+#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
     int value;
     size_t len;
 
-    len = 1;
+    len = 4;
     value = 0;
     sysctlbyname("hw.acpi.acline", &value, &len, NULL, 0);
     if (value == 0)

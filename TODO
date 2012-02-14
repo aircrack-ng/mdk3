@@ -1,7 +1,7 @@
 MDK3 TODO List
 
-Fix Changelog and Authors file ;)
-Write complete docs
+* Write complete docs
+* Update manpage
 
 802.11 allows you to fragment each packet into as many as 16 pieces. It would be nice if we could use fragmentated packets in every attack.
 if you want to make the WIDS vendors hate you, also match the sequence numbers of the victims
@@ -12,11 +12,12 @@ Ad-hoc compatibility?
   * Works for Probing
   * Deauth should work (untested)
   * AuthDos untested (does this even work?)
-    -> do STA flooding
+    -> do STA flooding instead
 Intelligent AuthDOS with Shared Key Auth
 SSID Bruteforce: Read Wordlist from stdin
 CTS control frame flooding
 
+* Fuzzing mode modifying incoming packets or creating random ones
 
 EAP attacks:
 
