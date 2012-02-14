@@ -3,8 +3,6 @@
 
 #include "packet.h"
 
-#define MAX_PACKET_SIZE 2048
-
 #ifdef __GNUC__
 #define VARIABLE_IS_NOT_USED __attribute__ ((unused))
 #else

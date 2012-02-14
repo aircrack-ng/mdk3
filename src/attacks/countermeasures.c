@@ -101,26 +101,25 @@ struct packet countermeasures_getpacket(void *options) {
   static struct packet sniffed;
   struct ieee_hdr *hdr;
   struct ether_addr src;
-  static unsigned int nb_pkt = 1;
+  static unsigned int nb_pkt = 0;
   unsigned char i;
   long int r;
+
+  if (!nb_pkt) { sniffed.len = 0; nb_pkt = 1; } //init
 
   sleep_till_next_packet(copt->speed);
   
   if (copt->useqos) {
 
-    if (sniffed.data) {	//We got a packet, that has to be sent again a few times :)
+    if (sniffed.len) {	//We got a packet, that has to be sent again a few times :)
 
       sniffed.data[QOS_PACKET_PRIO_POS]++;
       increase_seqno(&sniffed);  //Increase sequence counter to avoid IDS
       
-      pkt.len = sniffed.len;
-      pkt.data = malloc(pkt.len);
-      memcpy(pkt.data, sniffed.data, pkt.len);
+      pkt = sniffed;
 
       if ((sniffed.data[QOS_PACKET_PRIO_POS] & 0x07) == 0x07) {
-	free(sniffed.data);
-	sniffed.data = NULL;
+	sniffed.len = 0;
       }
       
       return pkt;
@@ -149,11 +148,8 @@ struct packet countermeasures_getpacket(void *options) {
       sniffed.data[QOS_PACKET_PRIO_POS] &= 0xF8;  //Reset QoS queue to 0
       increase_seqno(&sniffed);  //Increase sequence counter to avoid IDS
 
-      pkt.len = sniffed.len;
-      pkt.data = malloc(pkt.len);
-      memcpy(pkt.data, sniffed.data, pkt.len);
+      pkt = sniffed;
       return pkt;
-      
     }
     
   } else {
@@ -161,7 +157,6 @@ struct packet countermeasures_getpacket(void *options) {
     // pkt.len = (rand() % 246) + 20;
     src = generate_mac(MAC_KIND_CLIENT);
 
-    pkt.data = malloc(64);
     create_ieee_hdr(&pkt, IEEE80211_TYPE_DATA, 't', AUTH_DEFAULT_DURATION, *(copt->target), src, *(copt->target), SE_NULLMAC, 0);
     pkt.len = 64;
 

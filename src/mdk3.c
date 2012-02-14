@@ -70,7 +70,6 @@ void main_loop(struct attacks *att, void *options) {
     
     //Send packet
     osdep_send_packet(&inject);
-    free(inject.data);
     p_sent_ps++;
     p_sent++;
     

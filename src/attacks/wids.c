@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <time.h>
+#include <pthread.h>
 
 #include "wids.h"
 #include "../osdep.h"
@@ -98,12 +99,38 @@ void *wids_parse(int argc, char *argv[]) {
   return (void *) wopt;
 }
 
+void wids_sniffer(void *options) {
+  struct wids_options *wopt = (struct wids_options *) options;
+
+}
 
 struct packet wids_getpacket(void *options) {
+  static int wids_init = 0;
+  static pthread_t sniffer;
   struct wids_options *wopt = (struct wids_options *) options;
   struct packet pkt;
 
+  if (!wids_init) {
+    printf("\nWaiting 10 seconds for initialization...\n");
 
+
+    pthread_create(&sniffer, NULL, (void *) wids_sniffer, (void *) wopt);
+
+        for (wids_init=0; wids_init<10; wids_init++) {
+            sleep(1);
+            printf("\rAPs found: %d   Clients found: %d", wopt->aps, wopt->clients);
+        }
+
+        while (! wopt->aps) {
+            printf("\rNo APs have been found yet, waiting...\n");
+            sleep(1);
+        }
+        while (! wopt->clients) {
+            printf("\rOnly APs found, no clients yet, waiting...\n");
+            sleep(1);
+        }
+        wids_init = 1;
+  }
 
   sleep_till_next_packet(wopt->speed);
   return pkt;

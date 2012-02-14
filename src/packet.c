@@ -165,8 +165,6 @@ struct packet create_beacon(struct ether_addr bssid, char *ssid, uint8_t channel
   static uint64_t internal_timestamp = 0;
   struct ether_addr bc;
   
-  beacon.data = malloc(2048);	//Will resize it later
-  
   MAC_SET_BCAST(bc);
   create_ieee_hdr(&beacon, IEEE80211_TYPE_BEACON, 'a', 0, bc, bssid, bssid, SE_NULLMAC, 0);
 
@@ -194,16 +192,13 @@ struct packet create_beacon(struct ether_addr bssid, char *ssid, uint8_t channel
     beacon.len += 26;
   }
   
-  beacon.data = realloc(beacon.data, beacon.len);
   return beacon;
 }
 
 struct packet create_auth(struct ether_addr bssid, struct ether_addr client, uint16_t seq) {
   struct packet auth;
   struct auth_fixed *af;
-  
-  auth.data = malloc(30);
-  
+
   create_ieee_hdr(&auth, IEEE80211_TYPE_AUTH, 'a', AUTH_DEFAULT_DURATION, bssid, client, bssid, SE_NULLMAC, 0);
   
   af = (struct auth_fixed *) (auth.data + auth.len);
@@ -219,8 +214,6 @@ struct packet create_auth(struct ether_addr bssid, struct ether_addr client, uin
 struct packet create_probe(struct ether_addr source, char *ssid, unsigned char bitrate) {
   struct packet probe;
   struct ether_addr bc;
-
-  probe.data = malloc(2048);
   
   MAC_SET_BCAST(bc);
   create_ieee_hdr(&probe, IEEE80211_TYPE_PROBEREQ, 'a', 0, bc, source, bc, SE_NULLMAC, 0);
@@ -228,16 +221,13 @@ struct packet create_probe(struct ether_addr source, char *ssid, unsigned char b
   add_ssid_set(&probe, ssid);
   add_rate_sets(&probe, 1, (bitrate == 54));
   
-  probe.data = realloc(probe.data, probe.len);
   return probe;
 }
 
 struct packet create_deauth(struct ether_addr destination, struct ether_addr source, struct ether_addr bssid) {
   struct packet deauth;
   uint16_t *reason;
-  
-  deauth.data = malloc(26);
-  
+
   create_ieee_hdr(&deauth, IEEE80211_TYPE_DEAUTH, 'a', AUTH_DEFAULT_DURATION, destination, source, bssid, SE_NULLMAC, 0);
   
   reason = (uint16_t *) (deauth.data + deauth.len);
@@ -255,9 +245,7 @@ struct packet create_deauth(struct ether_addr destination, struct ether_addr sou
 struct packet create_disassoc(struct ether_addr destination, struct ether_addr source, struct ether_addr bssid) {
   struct packet disassoc;
   uint16_t *reason;
-  
-  disassoc.data = malloc(26);
-  
+
   create_ieee_hdr(&disassoc, IEEE80211_TYPE_DISASSOC, 'a', AUTH_DEFAULT_DURATION, destination, source, bssid, SE_NULLMAC, 0);
   
   reason = (uint16_t *) (disassoc.data + disassoc.len);
@@ -275,9 +263,7 @@ struct packet create_disassoc(struct ether_addr destination, struct ether_addr s
 struct packet create_assoc_req(struct ether_addr client, struct ether_addr bssid, uint16_t capabilities, char *ssid, unsigned char bitrate) {
   struct packet assoc;
   struct assoc_fixed *af;
-  
-  assoc.data = malloc(2048);
-  
+
   create_ieee_hdr(&assoc, IEEE80211_TYPE_ASSOCREQ, 'a', AUTH_DEFAULT_DURATION, bssid, client, bssid, SE_NULLMAC, 0);
   af = (struct assoc_fixed *) (assoc.data + assoc.len);
 
@@ -288,7 +274,6 @@ struct packet create_assoc_req(struct ether_addr client, struct ether_addr bssid
   add_ssid_set(&assoc, ssid);
   add_rate_sets(&assoc, 1, (bitrate == 54));
   
-  assoc.data = realloc(assoc.data, assoc.len);
   return assoc;
 }
 
@@ -333,8 +318,6 @@ uint16_t get_capabilities(struct packet *pkt) {
 }
 
 void append_data(struct packet *pkt, unsigned char *data, int len) {
-  pkt->data = realloc(pkt->data, pkt->len + len);
-  
   memcpy(pkt->data + pkt->len, data, len);
   
   pkt->len += len;
@@ -342,9 +325,7 @@ void append_data(struct packet *pkt, unsigned char *data, int len) {
 
 void add_llc_header(struct packet *pkt, uint16_t llc_type) {
   struct llc_header *llc;
-  
-  pkt->data = realloc(pkt->data, pkt->len + 8);
-  
+
   llc = (struct llc_header *) (pkt->data + sizeof(struct ieee_hdr));
   llc->dsap = LLC_SNAP; llc->ssap = LLC_SNAP;
   llc->control = LLC_UNNUMBERED;
@@ -360,8 +341,6 @@ void add_eapol(struct packet *pkt, uint16_t wpa_length, uint8_t *wpa_element, ui
   uint32_t t;
 
   replay_ctr++; replay_ctr %= 32;
-  
-  pkt->data = realloc(pkt->data, pkt->len + sizeof(struct rsn_auth) + wpa_length);
 
   rsn = (struct rsn_auth *) (pkt->data + sizeof(struct ieee_hdr) + sizeof(struct llc_header));
   rsn->version = rsn_version;
@@ -421,14 +400,4 @@ void set_seqno(struct packet *pkt, uint16_t seq) {
   frgseq |= (seq << 4); //Add seq
 
   hdr->frag_seq = htole16(frgseq);
-}
-
-struct packet copy_packet(struct packet src) {
-  struct packet retn;
-  
-  retn.len = src.len;
-  retn.data = malloc(src.len);
-  memcpy(retn.data, src.data, src.len);
-  
-  return retn;
 }

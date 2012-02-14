@@ -203,7 +203,6 @@ void test_packet() {
     printf("SSID found in beacon: %s\n", ssid);
     printf("Capabilities: %04X\n", caps);
     free(ssid);
-    free(pkt.data);
   }
   printf("Creating random auths :)\n");
   for(i=0; i<20; i++) {
@@ -211,7 +210,6 @@ void test_packet() {
     station = generate_mac(MAC_KIND_CLIENT);
     pkt = create_auth(bssid, station, (random() % 2) + 1);
     dump_packet(&pkt);
-    free(pkt.data);
   }
   printf("Creating random probes :)\n");
   for(i=0; i<20; i++) {
@@ -219,7 +217,6 @@ void test_packet() {
     ssid = generate_ssid(0);
     pkt = create_probe(station, ssid, (random() % 2) * 54);
     dump_packet(&pkt);
-    free(pkt.data);
     free(ssid);
   }
   printf("Creating random kicks :)\n");
@@ -228,16 +225,12 @@ void test_packet() {
     bssid = generate_mac(MAC_KIND_AP);    
     pkt = create_deauth(bssid, station, bssid);
     dump_packet(&pkt);
-    free(pkt.data);
     pkt = create_deauth(station, bssid, bssid);
     dump_packet(&pkt);
-    free(pkt.data);
     pkt = create_disassoc(bssid, station, bssid);
     dump_packet(&pkt);
-    free(pkt.data);
     pkt = create_disassoc(station, bssid, bssid);
     dump_packet(&pkt);
-    free(pkt.data);
   }
   printf("Creating random associations :)\n");
   for(i=0; i<20; i++) {
@@ -246,7 +239,6 @@ void test_packet() {
     station = generate_mac(MAC_KIND_CLIENT);
     pkt = create_assoc_req(station, bssid, 0x0431, ssid, 54);
     dump_packet(&pkt);
-    free(pkt.data);
     free(ssid);
   }
   printf("done!\n");

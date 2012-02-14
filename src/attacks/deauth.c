@@ -168,7 +168,6 @@ unsigned char get_new_target(struct ether_addr *client, struct ether_addr *ap, u
   
   set_seqno(NULL, get_seqno(&sniffed));  // Eff you, WIDS
 
-  free(sniffed.data);
   return wds;
 }
 

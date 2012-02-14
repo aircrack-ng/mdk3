@@ -54,7 +54,6 @@ struct packet dummy_getpacket(void *options) {
   printf("Build your packet here and return it. NULL data makes mdk3 exit\n");
    
   pkt.len = 0;
-  pkt.data = NULL;
   
   return pkt;
 }

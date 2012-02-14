@@ -203,7 +203,7 @@ struct packet probing_getpacket(void *options) {
   if (popt->charsets) {
     if (ssidlen && popt->proceed && (ssidlen != strlen(popt->proceed))) {
       printf("SSID length and length of bruteforcer start word are not equal. That won't work ;)\n");
-      pkt.len = 0; pkt.data = NULL; return pkt;
+      pkt.len = 0; return pkt;
     }
     if (ssidlen) {
       popt->proceed = get_brute_word(popt->charsets, popt->proceed, ssidlen);
@@ -217,13 +217,13 @@ struct packet probing_getpacket(void *options) {
     if (popt->proceed == NULL) { //Keyspace exhausted
       printf("\nKeyspace exhausted.\n");
       sleep(3);
-      pkt.len = 0; pkt.data = NULL; return pkt;
+      pkt.len = 0; return pkt;
     }
     pkt = create_probe(src, popt->proceed, 54);
     return pkt;
   }
   
-  pkt.len = 0; pkt.data = NULL; return pkt;
+  pkt.len = 0; return pkt;
 }
 
 

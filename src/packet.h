@@ -49,8 +49,10 @@
 #define MESH_TAG_PREQ		0x82
 #define MESH_TAG_PREP		0x83
 
+#define MAX_PACKET_SIZE 2048
+
 struct packet {
-  unsigned char *data;
+  unsigned char data[MAX_PACKET_SIZE];
   unsigned int len;
 };
 
@@ -189,8 +191,5 @@ void increase_seqno(struct packet *pkt);
 uint16_t get_seqno(struct packet *pkt);
 //If pkt is NULL in set_seqno, the sequence number for the next call to create_ieee_hdr will be seqno + 1!
 void set_seqno(struct packet *pkt, uint16_t seqno);
-
-/* Deep Copy - Duplicates data buffer, so you need to free old and new packet! */
-struct packet copy_packet(struct packet src);
 
 #endif

@@ -340,7 +340,6 @@ struct packet auth_dos_get_data(struct ether_addr client, struct ether_addr bssi
   dataclist = dataclist->next;
 
   //Copy packet out of the list
-  retn.data = malloc(dataclist->data_len);
   memcpy(retn.data, dataclist->data, dataclist->data_len);
   retn.len = dataclist->data_len;
   
@@ -408,7 +407,6 @@ struct packet auth_dos_intelligent_getpacket(struct auth_dos_options *aopt) {
 	  capabilities = get_capabilities(&beacon);
 	  printf("Capabilities are: 0x%04X\n", capabilities);
 	  printf("SSID is: %s\n", ssid);
-	  free(beacon.data);
 	  break;
 	}
       }

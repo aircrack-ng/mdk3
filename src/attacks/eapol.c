@@ -21,6 +21,7 @@
 #define BEACON_TAG_MSFT 0x0050F201
 
 #define LLC_TYPE_EAPOL  0x888E
+#define EAPOL_LOGOFF_LEN 36
 
 
 struct eapol_options {
@@ -173,9 +174,6 @@ void decode_beacon(struct packet *beacon) {
 struct packet build_eapol(struct ether_addr *target, struct ether_addr *client, uint8_t rsn_version) {
   struct packet pkt;
   
-  pkt.len = sizeof(struct ieee_hdr);
-  pkt.data = malloc(pkt.len);
-
   create_ieee_hdr(&pkt, IEEE80211_TYPE_DATA, 't', AUTH_DEFAULT_DURATION, *target, *client, *target, SE_NULLMAC, 0);
   add_llc_header(&pkt, LLC_TYPE_EAPOL);
 
@@ -190,21 +188,15 @@ struct packet build_eapol(struct ether_addr *target, struct ether_addr *client, 
 struct packet build_eapol_start_logoff(struct ether_addr *target, struct ether_addr *client, uint8_t start_logoff) {
   struct packet pkt;
   
-  pkt.len = sizeof(struct ieee_hdr);
-  pkt.data = malloc(pkt.len);
-  
   create_ieee_hdr(&pkt, IEEE80211_TYPE_DATA, 't', AUTH_DEFAULT_DURATION, *target, *client, *target, SE_NULLMAC, 0);
   add_llc_header(&pkt, LLC_TYPE_EAPOL);
-  
-  pkt.data = realloc(pkt.data, pkt.len + 4);
-  
+
   pkt.data[pkt.len] = 0x01;
   pkt.data[pkt.len+1] = start_logoff;
   pkt.data[pkt.len+2] = 0x00;
   pkt.data[pkt.len+3] = 0x00; 
   
   pkt.len += 4;
-  #define EAPOL_LOGOFF_LEN 36
   return pkt;
 }
 
@@ -241,10 +233,12 @@ struct packet eapol_getpacket(void *options) {
   struct ieee_hdr *hdr;
   struct ether_addr *bssid = NULL, *client = NULL;
   char usable_packet = 0, pack_type = 0;
-  static char need_beacon = 1, blocks_auth = 0;
-  static struct packet *old = NULL;
+  static char need_beacon = 2, blocks_auth = 0;
+  static struct packet old;
   uint8_t rsn_version = 0;
   
+  if (need_beacon == 2) { old.len = 0; need_beacon = 1; } //init
+
   sleep_till_next_packet(eopt->speed);
 
   if (eopt->attack_type == 'l') return eapol_logoff(eopt->target);
@@ -252,20 +246,13 @@ struct packet eapol_getpacket(void *options) {
   do {
     sniffed = osdep_read_packet();
 
-    if (old) {
-      if (old->len == sniffed.len) {
-	if (! memcmp(old->data + 2, sniffed.data + 2, old->len - 2)) {
-	  free(sniffed.data);
-	  continue; //Its a retry, skip it
-	}
+    if (old.len == sniffed.len) {
+      if (! memcmp(old.data + 2, sniffed.data + 2, old.len - 2)) {
+        continue; //Its a retry, skip it
       }
-      free(old->data);
-    } else {
-      old = malloc(sizeof(struct packet));
     }
 
-    old->data = sniffed.data;
-    old->len = sniffed.len;
+    old = sniffed;
 
     hdr = (struct ieee_hdr *) sniffed.data;
 
@@ -328,13 +315,11 @@ struct packet eapol_getpacket(void *options) {
       if (! target_rsn) {
 	if (!target_wpa1) {
 	  printf("\rERROR: AP sends no WPA tags, AP does not support WPA, exiting...\n");
-	  pkt.data = NULL; pkt.len = 0; return pkt;
+	  pkt.len = 0; return pkt;
 	}
-	pkt.data = realloc(pkt.data, pkt.len + 2 + target_wpa1[1]);
 	memcpy(pkt.data + pkt.len, target_wpa1, target_wpa1[1] + 2);
 	pkt.len += target_wpa1[1] + 2;
       } else {
-	pkt.data = realloc(pkt.data, pkt.len + 2 + target_rsn[1]);
 	memcpy(pkt.data + pkt.len, target_rsn, target_rsn[1] + 2);
 	pkt.len += target_rsn[1] + 2;
       }
@@ -348,7 +333,6 @@ struct packet eapol_getpacket(void *options) {
       eapols++;
     break;
     default: //Somethings wrong....
-      pkt.data = NULL;
       pkt.len = 0;
   }
 

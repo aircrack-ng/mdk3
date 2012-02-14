@@ -79,21 +79,17 @@ struct packet osdep_read_packet()
 	struct wif *wi = _wi_in; /* XXX */
 	int rc;
 	struct packet pkt;
-	
-	pkt.data = malloc(MAX_PACKET_SIZE);
-	
+
 	do {
 	  rc = wi_read(wi, pkt.data, MAX_PACKET_SIZE, NULL);
 	  if (rc == -1) {
 	    perror("wi_read()");
-	    free(pkt.data);
 	    pkt.len = 0;
 	    return pkt;
 	  }
 	} while (rc < 1);
 
 	pkt.len = rc;
-	pkt.data = realloc(pkt.data, pkt.len);
 	return pkt;
 }
 

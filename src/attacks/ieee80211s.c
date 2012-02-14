@@ -144,8 +144,8 @@ int action_frame_sniffer_acceptpacket(struct packet sniffed) {
       return -1;  //Sniffed own injected packet, drop
     }
   }
-  if (action_frame_sniffer_pkt.data) free(action_frame_sniffer_pkt.data);
-  action_frame_sniffer_pkt = copy_packet(sniffed);
+  action_frame_sniffer_pkt = sniffed;
+  set_seqno(NULL, get_seqno(&sniffed));
   pthread_mutex_unlock(&sniff_packet_mutex);
   return 0;
 }
@@ -175,12 +175,11 @@ void action_frame_sniffer_thread(void *target_id) {
 	free(meshid);
       }
     }
-    free(sniffed.data);
   }
 }
 
 struct packet do_fuzzing(struct ieee80211s_options *dopt) {
-  struct packet pkt, sniff;
+  struct packet sniff;
   static pthread_t *sniffer = NULL;
   struct ieee_hdr *hdr;
   static struct ether_addr genmac;
@@ -196,7 +195,6 @@ struct packet do_fuzzing(struct ieee80211s_options *dopt) {
   if (sniffer == NULL) {
     sniffer = malloc(sizeof(pthread_t));
     action_frame_sniffer_pkt.len = 0;
-    action_frame_sniffer_pkt.data = NULL;
     pthread_create(sniffer, NULL, (void *) action_frame_sniffer_thread, (void *) dopt->mesh_id);
   }
   
@@ -206,7 +204,7 @@ struct packet do_fuzzing(struct ieee80211s_options *dopt) {
     usleep(50000);
     pthread_mutex_lock(&sniff_packet_mutex);
   }
-  sniff = copy_packet(action_frame_sniffer_pkt);
+  sniff = action_frame_sniffer_pkt;
   pthread_mutex_unlock(&sniff_packet_mutex);
   
   if (dopt->fuzz_type == 5) {
@@ -217,6 +215,7 @@ struct packet do_fuzzing(struct ieee80211s_options *dopt) {
   
   switch (curfuzz) {
     case 1:
+      increase_seqno(&sniff);
       return sniff;
     break;
     case 2:
@@ -237,10 +236,10 @@ struct packet do_fuzzing(struct ieee80211s_options *dopt) {
     break;
     default:
       printf("BUG! Unknown fuzzing type %c\n", dopt->fuzz_type);
-      pkt.len = 0; pkt.data = NULL;
   }
   
-  return pkt;
+  sniff.len = 0;
+  return sniff;
 }
 
 struct packet do_blackhole(struct ieee80211s_options *dopt) {
@@ -268,7 +267,6 @@ struct packet do_blackhole(struct ieee80211s_options *dopt) {
   snprintf(blackhole_info, 1024, "Hops %3d  TTL %3d  ID %3d  Metric %5d  SeqNo %d/%d",
 	   preq->hop_count, preq->ttl, preq->discovery_id, preq->metric, preq->orig_seq, preq->target_seq);
   
-  inject.data = malloc(2048);
   src = get_source(&sniff);
   create_ieee_hdr(&inject, IEEE80211_TYPE_ACTION, 'a', AUTH_DEFAULT_DURATION, *src, *(dopt->target), *(dopt->target), *src, 0);
   actinj = (struct action_fixed *) (inject.data + sizeof(struct ieee_hdr));
@@ -290,7 +288,6 @@ struct packet do_blackhole(struct ieee80211s_options *dopt) {
   prep->originator = preq->target;
   prep->orig_seq = preq->target_seq + 10;
   
-  free(sniff.data);
   return inject;
 }
 
@@ -306,7 +303,6 @@ struct packet do_flood(struct ieee80211s_options *dopt) {
   
   MAC_SET_BCAST(bcast);
   
-  inject.data = malloc(2048);
   create_ieee_hdr(&inject, IEEE80211_TYPE_ACTION, 'a', AUTH_DEFAULT_DURATION, bcast, *(dopt->target), *(dopt->target), bcast, 0);
 
   act = (struct action_fixed *) (inject.data + sizeof(struct ieee_hdr));
@@ -398,7 +394,7 @@ struct packet ieee80211s_getpacket(void *options) {
     break;
     default:
       printf("BUG! Unknown attack type %c\n", dopt->attack_type);
-      pkt.len = 0; pkt.data = NULL;
+      pkt.len = 0;
   }
 
   return pkt;
