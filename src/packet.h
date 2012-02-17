@@ -17,6 +17,7 @@
 #define IEEE80211_TYPE_ASSOCREQ	0x00
 #define IEEE80211_TYPE_ASSOCRES	0x10
 #define IEEE80211_TYPE_ACTION   0xD0
+#define IEEE80211_TYPE_CTS      0xC4
 
 #define DEFAULT_BEACON_INTERVAL	0x64
 #define DEFAULT_11B_RATES	"\x01\x04\x82\x84\x8b\x96"
@@ -141,6 +142,13 @@ struct mesh_prep {
   uint32_t orig_seq;
 } __attribute__((packed));
 
+struct cts {
+  uint8_t type;
+  uint8_t flags;
+  uint16_t duration;
+  struct ether_addr dest;
+} __attribute__((packed));
+
 //dsflags: 'a' = AdHoc, Beacon   'f' = From DS   't' = To DS   'w' = WDS (intra DS)
 //Set recv to SE_NULLMAC if you don't create WDS packets. (its ignored anyway)
 void create_ieee_hdr(struct packet *pkt, uint8_t type, char dsflags, uint16_t duration, struct ether_addr destination, struct ether_addr source, struct ether_addr bssid_or_transm, struct ether_addr recv, uint8_t fragment);
@@ -169,6 +177,8 @@ struct packet create_disassoc(struct ether_addr destination, struct ether_addr s
 
 //Capabilities and SSID should match AP, so just copy them from one of its beacon frames
 struct packet create_assoc_req(struct ether_addr client, struct ether_addr bssid, uint16_t capabilities, char *ssid, unsigned char bitrate);
+
+struct packet create_cts(struct ether_addr destination, uint16_t duration);
 
 //Copy SSID or MeshID from Beacon Frame into String. Must free afterwards! Returns NULL on Errors (no beacon frame, no SSID tag found)
 //SSID len is also reported, because on hidden SSIDs, strlen() doesn't work, since the SSID is all NULLBYTES!

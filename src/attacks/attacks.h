@@ -9,6 +9,7 @@
 #include "eapol.h"
 #include "ieee80211s.h"
 #include "wids.h"
+#include "fuzzer.h"
 
 #include "../packet.h"
 

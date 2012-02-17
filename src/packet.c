@@ -277,6 +277,22 @@ struct packet create_assoc_req(struct ether_addr client, struct ether_addr bssid
   return assoc;
 }
 
+struct packet create_cts(struct ether_addr destination, uint16_t duration) {
+  struct packet pkt;
+  struct cts *cts;
+
+  cts = (struct cts *) pkt.data;
+
+  cts->dest = destination;
+  cts->duration = duration;
+  cts->flags = 0;
+  cts->type = IEEE80211_TYPE_CTS;
+
+  pkt.len = sizeof(struct cts);
+
+  return pkt;
+}
+
 char *get_id_type(struct packet *pkt, unsigned char *ssidlen, unsigned char type) {
   char *ssid = NULL;
   struct ieee_hdr *hdr = (struct ieee_hdr *) (pkt->data);
