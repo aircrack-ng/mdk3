@@ -47,7 +47,7 @@ void fuzz_longhelp()
           "         b - Set destination address to broadcast\n"
           "         m - Set source address to broadcast\n"
           "         s - Shotgun: randomly overwrites a couple of bytes\n"
-          "         t - add broken tagged parameters (Only in beacon and probe packets)\n"
+          "         t - append random bytes (creates broken tagged parameters in beacons/probes)\n"
           "         c - Cut packets short, preferably somewhere in headers or tags\n"
           "         d - Insert random values in Duration and Flags fields\n"
           "      -c [chan,chan,...,chan[:speed]]\n"
@@ -62,8 +62,7 @@ int like_options(char *options, char *valid) {
   unsigned int i;
 
   for (i=0; i<strlen(options); i++) {
-    if (! strchr(valid, options[i]))
-        return 0;
+    if (! strchr(valid, options[i])) return 0;
   }
 
   return 1;
@@ -108,7 +107,7 @@ void *fuzz_parse(int argc, char *argv[]) {
     }
   }
 
-  if ((! fopt->sources) && (! fopt->modifiers)) {
+  if ((! fopt->sources) || (! fopt->modifiers)) {
     fuzz_longhelp();
     printf("\n\nSources and Modifiers must be specified!\n");
     return NULL;
@@ -184,7 +183,7 @@ struct packet fuzz_getpacket(void *options) {
     }
   }
 
-  modcount = random() % strlen(fopt->modifiers);
+  modcount = (random() % strlen(fopt->modifiers)) + 1;
   if (modifier) free(modifier);
   modifier = malloc(modcount + 1);
   memset(modifier, 0x00, modcount + 1);
@@ -225,7 +224,6 @@ struct packet fuzz_getpacket(void *options) {
         hdr->flags = random();
       break;
       default: //WTF
-        printf("WTF in switch mod: %c\n", mod);
         pkt.len = 0; return pkt;
     }
   }
