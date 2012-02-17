@@ -33,7 +33,7 @@ struct clistwidsclient *search_status_widsclient(struct clistwidsclient *c, int 
   struct clistwidsclient *first = c;
 
   do {
-    if ((c->status == desired_status) && (c->bssid->channel == desired_channel)) {
+    if ((c->status == desired_status) && ((c->bssid->channel == desired_channel) || (desired_channel = -1))) {
       pthread_mutex_unlock(&clist_mutex);
       return c;
     }
@@ -144,7 +144,7 @@ struct clist *add_to_clist(struct clist *c, unsigned char *data, int status, int
   return new_item;
 }
 
-struct clistwidsap *add_to_clistwidsap(struct clistwidsap *c, struct ether_addr bssid, int channel, unsigned char *capa)
+struct clistwidsap *add_to_clistwidsap(struct clistwidsap *c, struct ether_addr bssid, int channel, uint16_t capa, char *ssid)
 {
   pthread_mutex_lock(&clist_mutex);
   
@@ -159,14 +159,15 @@ struct clistwidsap *add_to_clistwidsap(struct clistwidsap *c, struct ether_addr 
   }
   
   new_item->channel = channel;
-  new_item->capa[0] = capa[0];
-  new_item->capa[1] = capa[1];
+  new_item->capa = capa;
+  new_item->ssid = malloc(strlen(ssid) + 1);
+  strcpy(new_item->ssid, ssid);
 
   pthread_mutex_unlock(&clist_mutex);
   return new_item;
 }
 
-struct clistwidsclient *add_to_clistwidsclient(struct clistwidsclient *c, struct ether_addr mac, int status, unsigned char *data, int data_len, struct clistwidsap *bssid)
+struct clistwidsclient *add_to_clistwidsclient(struct clistwidsclient *c, struct ether_addr mac, int status, unsigned char *data, int data_len, uint16_t sequence, struct clistwidsap *bssid)
 {
   pthread_mutex_lock(&clist_mutex);
   
@@ -185,6 +186,8 @@ struct clistwidsclient *add_to_clistwidsclient(struct clistwidsclient *c, struct
   new_item->status = status;
   new_item->data_len = data_len;
   new_item->bssid = bssid;
+  new_item->retries = 0;
+  new_item->seq = sequence;
 
   pthread_mutex_unlock(&clist_mutex);
   return new_item;
@@ -228,4 +231,40 @@ struct clistauthdos *search_authdos_status(struct clistauthdos *c, int desired_s
 
   pthread_mutex_unlock(&clist_mutex);
   return NULL;
+}
+
+struct clistwidsap *search_bssid_on_channel(struct clistwidsap *c, int desired_channel) {
+  if (!c) return NULL;
+
+  pthread_mutex_lock(&clist_mutex);
+  struct clistwidsap *first = c;
+
+  do {
+    if (desired_channel == c->channel) {
+      pthread_mutex_unlock(&clist_mutex);
+      return c;
+    }
+    c = c->next;
+  } while (c != first);
+
+  pthread_mutex_unlock(&clist_mutex);
+  return NULL;
+}
+
+struct clistwidsap *shuffle_widsaps(struct clistwidsap *c) {
+  int i, rnd = random() % SHUFFLE_DISTANCE;
+  struct clistwidsap *r = c;
+
+  for(i=0; i<rnd; i++) r = r->next;
+
+  return r;
+}
+
+struct clistwidsclient *shuffle_widsclients(struct clistwidsclient *c) {
+  int i, rnd = random() % SHUFFLE_DISTANCE;
+  struct clistwidsclient *r = c;
+
+  for(i=0; i<rnd; i++) r = r->next;
+
+  return r;
 }
