@@ -195,7 +195,7 @@ void append_data(struct packet *pkt, unsigned char *data, int len);
 void add_llc_header(struct packet *pkt, uint16_t llc_type);
 
 //Adds EAP/WPA packet behind the LLC Header to create WPA Login packets
-void add_eapol(struct packet *pkt, uint16_t wpa_length, uint8_t *wpa_element, uint8_t wpa_1or2, uint8_t rsn_version);
+void add_eapol(struct packet *pkt, uint16_t wpa_length, uint8_t *wpa_element, uint8_t wpa_1or2, uint8_t rsn_version, uint64_t rsn_replay);
 
 void increase_seqno(struct packet *pkt);
 uint16_t get_seqno(struct packet *pkt);

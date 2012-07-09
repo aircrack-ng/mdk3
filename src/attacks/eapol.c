@@ -164,23 +164,22 @@ void decode_beacon(struct packet *beacon) {
       decode_tag_wpa(tags);
       target_rsn = malloc(2 + tags[1]);
       memcpy(target_rsn, tags, 2 + tags[1]);
+      memset(target_rsn + tags[1], 0x00, 2); //Zero out RSN capabilities
     }
     tags += (tags[1] + 2);
   }
-
-  printf("Good luck with this thing. Until now, it only made my local mac80211 stack being stuck as soon as EAPOL is injected...\n");
 }
 
-struct packet build_eapol(struct ether_addr *target, struct ether_addr *client, uint8_t rsn_version) {
+struct packet build_eapol(struct ether_addr *target, struct ether_addr *client, uint8_t rsn_version, uint64_t rsn_replay) {
   struct packet pkt;
   
   create_ieee_hdr(&pkt, IEEE80211_TYPE_DATA, 't', AUTH_DEFAULT_DURATION, *target, *client, *target, SE_NULLMAC, 0);
   add_llc_header(&pkt, LLC_TYPE_EAPOL);
 
   if (! target_rsn) {
-    add_eapol(&pkt, 2 + target_wpa1[1], (uint8_t *) target_wpa1, 1, rsn_version);
+    add_eapol(&pkt, 2 + target_wpa1[1], (uint8_t *) target_wpa1, 1, rsn_version, rsn_replay);
   } else {
-    add_eapol(&pkt, 2 + target_rsn[1], (uint8_t *) target_rsn, 2, rsn_version);
+    add_eapol(&pkt, 2 + target_rsn[1], (uint8_t *) target_rsn, 2, rsn_version, rsn_replay);
   }
   return pkt;
 }
@@ -236,6 +235,7 @@ struct packet eapol_getpacket(void *options) {
   static char need_beacon = 2, blocks_auth = 0;
   static struct packet old;
   uint8_t rsn_version = 0;
+  uint64_t rsn_replay = 0;
   
   if (need_beacon == 2) { old.len = 0; need_beacon = 1; } //init
 
@@ -297,6 +297,7 @@ struct packet eapol_getpacket(void *options) {
 	  usable_packet = 1; pack_type = GOT_KEY1;
 	  client = get_destination(&sniffed);
 	  rsn_version = rsn->version;
+	  rsn_replay = rsn->replay_counter;
 	}
       }
 
@@ -329,7 +330,7 @@ struct packet eapol_getpacket(void *options) {
       starts++;
     break;
     case GOT_KEY1:
-      pkt = build_eapol(eopt->target, client, rsn_version);
+      pkt = build_eapol(eopt->target, client, rsn_version, rsn_replay);
       eapols++;
     break;
     default: //Somethings wrong....

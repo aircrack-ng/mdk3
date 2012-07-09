@@ -351,12 +351,9 @@ void add_llc_header(struct packet *pkt, uint16_t llc_type) {
   pkt->len += 8;
 }
 
-void add_eapol(struct packet *pkt, uint16_t wpa_length, uint8_t *wpa_element, uint8_t wpa_1or2, uint8_t rsn_version) {
+void add_eapol(struct packet *pkt, uint16_t wpa_length, uint8_t *wpa_element, uint8_t wpa_1or2, uint8_t rsn_version, uint64_t rsn_replay) {
   struct rsn_auth *rsn;
-  static uint64_t replay_ctr = 0;
   uint32_t t;
-
-  replay_ctr++; replay_ctr %= 32;
 
   rsn = (struct rsn_auth *) (pkt->data + sizeof(struct ieee_hdr) + sizeof(struct llc_header));
   rsn->version = rsn_version;
@@ -367,7 +364,7 @@ void add_eapol(struct packet *pkt, uint16_t wpa_length, uint8_t *wpa_element, ui
   if (wpa_1or2 == 1) rsn->key_info |= htobe16(0x0001);
   if (wpa_1or2 == 2) rsn->key_info |= htobe16(0x0002);
   rsn->key_length = htobe16(0);
-  rsn->replay_counter = htobe64(replay_ctr);
+  rsn->replay_counter = htobe64(rsn_replay);
   for (t=0; t<32; t++) rsn->nonce[t] = random();
   memset(rsn->key_iv, 0x00, 16);
   rsn->key_rsc = htobe64(0);
