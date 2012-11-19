@@ -80,6 +80,8 @@ void sleep_till_next_packet(unsigned int pps) {
   struct timeval now, next, wait;
   unsigned int tbp;
   
+  if (!pps) return;
+
   if (! lastvisit) {
     lastvisit = malloc(sizeof(struct timeval));
     gettimeofday(lastvisit, NULL);

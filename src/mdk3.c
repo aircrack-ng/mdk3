@@ -3,10 +3,12 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <time.h>
+#include <getopt.h>
 
 #include "attacks/attacks.h"
 #include "osdep.h"
 #include "ghosting.h"
+#include "fragmenting.h"
 
 #define VERSION "v7"
 #define VERSION_COOL "OMG! He cleaned his code!"
@@ -35,9 +37,10 @@ void print_help_and_die(struct attacks *att, int att_cnt, char full, char *add_m
   
 #ifdef __linux__
   ghosting_print_help();
-  printf("\n");
 #endif
   
+  frag_print_help();
+
   printf("Loaded %d attack modules\n\n", att_cnt);
 
   for(i=0; i<att_cnt; i++) {
@@ -60,7 +63,7 @@ void print_help_and_die(struct attacks *att, int att_cnt, char full, char *add_m
 
 void main_loop(struct attacks *att, void *options) {
   struct packet inject;
-  unsigned int p_sent = 0, p_sent_ps = 0;
+  unsigned int p_sent = 0, p_sent_ps = 0, ret;
   time_t t_prev = 0;
   
   while (1) {
@@ -69,7 +72,14 @@ void main_loop(struct attacks *att, void *options) {
     if ((inject.data == NULL) || (inject.len == 0)) break;
     
     //Send packet
-    osdep_send_packet(&inject);
+    if (frag_is_enabled()) ret = frag_send_packet(&inject);
+    else ret = osdep_send_packet(&inject);
+
+    if (ret) {
+      printf("Injecting packet failed :( Sorry.\n");
+      exit(-1);
+    }
+
     p_sent_ps++;
     p_sent++;
     
@@ -85,6 +95,24 @@ void main_loop(struct attacks *att, void *options) {
     //Perform checks
     att->perform_check(options);
   }
+}
+
+int parse_evasion(int argc, char *argv[]) {
+  int i = 1;
+
+  while(i < argc) {
+    if (i >= argc) break;
+
+    if (! strcmp(argv[i], "--ghost")) {
+      parse_ghosting(argv[i + 1]);
+      i += 2;
+    } else if (! strcmp(argv[i], "--frag")) {
+      parse_frag(argv[i + 1]);
+      i += 2;
+    } else return (i - 1);
+  }
+
+  return (i - 1);
 }
 
 int main(int argc, char *argv[]) {
@@ -119,19 +147,12 @@ int main(int argc, char *argv[]) {
   
   /* drop privileges */
   setuid(getuid());
+
   for(i=0; i<att_cnt; i++) free(a[i].attack_name); //Make Valgrind smile :)
+
+  i = 2 + parse_evasion(argc - 2, argv + 2);
   
-  if ((argc > 3) && (! strcmp(argv[3], "--ghost"))) {
-#ifdef __linux__
-    parse_ghosting(argv[4]);
-    cur_options = cur_attack->parse_options(argc - 4, argv + 4);
-#else
-    printf("Sorry, IDS Evasion aka Ghosting is only available on Linux.\n");
-#endif
-  } else {
-    cur_options = cur_attack->parse_options(argc - 2, argv + 2);
-  }
-  
+  cur_options = cur_attack->parse_options(argc - i, argv + i);
   if (!cur_options) return 1;
 
   srandom(time(NULL));	//Fresh numbers each run

@@ -1,6 +1,7 @@
 #ifndef HAVE_MACADDR_H
 #define HAVE_MACADDR_H
 
+#include <string.h>
 #include <net/ethernet.h>
 
 #define NULLMAC "\x00\x00\x00\x00\x00\x00"

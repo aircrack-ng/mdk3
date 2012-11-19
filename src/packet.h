@@ -202,4 +202,7 @@ uint16_t get_seqno(struct packet *pkt);
 //If pkt is NULL in set_seqno, the sequence number for the next call to create_ieee_hdr will be seqno + 1!
 void set_seqno(struct packet *pkt, uint16_t seqno);
 
+uint8_t get_fragno(struct packet *pkt);
+void set_fragno(struct packet *pkt, uint8_t frag, int last_frag);
+
 #endif

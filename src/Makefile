@@ -5,11 +5,11 @@ SBINDIR		= $(PREFIX)/sbin
 MANDIR		= $(PREFIX)/share/man
 
 OSD		= osdep
-LIBS		= -L$(OSD) -l$(OSD)
+LIBS		= -lm -L$(OSD) -l$(OSD)
 LIBOSD		= $(OSD)/lib$(OSD).so
 
 OBJS		= debug.o helpers.o mac_addr.o linkedlist.o greylist.o dumpfile.o packet.o brute.o
-OBJS_OSD	= osdep.o channelhopper.o ghosting.o
+OBJS_OSD	= osdep.o channelhopper.o ghosting.o fragmenting.o
 
 ATTACKS		= attacks
 OBJ_ATT		= $(shell ls attacks/*.h | sed s/"\.h"/"\.o"/g)

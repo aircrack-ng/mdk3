@@ -397,6 +397,15 @@ uint16_t get_seqno(struct packet *pkt) {
   return seq;
 }
 
+uint8_t get_fragno(struct packet *pkt) {
+  uint16_t seq;
+  struct ieee_hdr *hdr = (struct ieee_hdr *) (pkt->data);
+
+  seq = letoh16(hdr->frag_seq);
+
+  return (seq & 0xF);
+}
+
 void set_seqno(struct packet *pkt, uint16_t seq) {
   struct ieee_hdr *hdr;
   uint16_t frgseq;
@@ -413,4 +422,17 @@ void set_seqno(struct packet *pkt, uint16_t seq) {
   frgseq |= (seq << 4); //Add seq
 
   hdr->frag_seq = htole16(frgseq);
+}
+
+void set_fragno(struct packet *pkt, uint8_t frag, int last_frag) {
+  struct ieee_hdr *hdr = (struct ieee_hdr *) (pkt->data);
+  uint16_t seq = letoh16(hdr->frag_seq);
+
+  if (last_frag) hdr->flags &= 0xFB;
+  else hdr->flags |= 0x04;
+
+  seq &= 0xFFF0; //Clear frag bits
+  seq |= frag;
+
+  hdr->frag_seq = htole16(seq);
 }
