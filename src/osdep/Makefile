@@ -1,5 +1,5 @@
-AC_ROOT	= ..
-include $(AC_ROOT)/common.mak
+MDK_ROOT	= ../..
+include $(MDK_ROOT)/common.mak
 
 RTAP		= radiotap
 
