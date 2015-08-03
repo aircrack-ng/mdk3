@@ -1,11 +1,13 @@
-CFLAGS		= -g -O3 -Wall -Wextra
-LINKFLAGS	= -lpthread -lpcap
+include common.mak
+
+CFLAGS		+= -g -O3 -Wall -Wextra
+LINKFLAGS	= -lpthread -lpcap $(LDFLAGS)
 
 SBINDIR		= $(PREFIX)/sbin
 MANDIR		= $(PREFIX)/share/man
 
 OSD		= osdep
-LIBS		= -lm -L$(OSD) -l$(OSD)
+LIBS		+= -lm -L$(OSD) -l$(OSD)
 LIBOSD		= $(OSD)/lib$(OSD).so
 
 OBJS		= debug.o helpers.o mac_addr.o linkedlist.o greylist.o dumpfile.o packet.o brute.o

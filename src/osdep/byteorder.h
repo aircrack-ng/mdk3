@@ -1,7 +1,7 @@
 /*
  *  Compatibility header
  *
- *  Copyright (C) 2009 Thomas d'Otreppe
+ *  Copyright (C) 2009-2015 Thomas d'Otreppe <tdotreppe@aircrack-ng.org>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -181,7 +181,7 @@
 	 * Solaris
 	 * -------
 	 */
-	#if defined(__sparc__)
+	#if defined(__sparc__) && defined(__sun__)
 	#include <sys/byteorder.h>
 	#include <sys/types.h>
 	#include <unistd.h>
@@ -211,7 +211,7 @@
 	/*
 	 * Custom stuff
 	 */
-	#if  defined(__MACH__) && !defined(__APPLE_CC__)
+	#if  defined(__MACH__) && !defined(__APPLE_CC__) && !defined(__GNU__)
 		#include <libkern/OSByteOrder.h>
 		#define __cpu_to_be64(x) = OSSwapHostToBigInt64(x)
 		#define __cpu_to_be32(x) = OSSwapHostToBigInt32(x)
